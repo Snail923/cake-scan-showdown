@@ -126,7 +126,6 @@
         <button slot="ar-button" class="ar-btn">View on your table</button>
         <span class="no-ar">AR opens on a phone</span>
       </model-viewer>
-      <p class="notice">Texture files were not included in the export, so this model is shown as untextured geometry.</p>
       <dl class="stats">
         <div><dt>Triangles</dt><dd>156,450</dd></div>
         <div><dt>Texture</dt><dd>8K (free)</dd></div>
@@ -191,7 +190,7 @@
           </tr>
           <tr>
             <th scope="row">Texture detail</th>
-            <td class="best"><span class="dots"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i></span>8K (maps missing here)</td>
+            <td class="best"><span class="dots"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i></span>8K</td>
             <td><span class="dots"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i></i></span>4K</td>
             <td><span class="dots"><i class="on"></i><i class="on"></i><i></i><i></i><i></i></span>1K–4K</td>
           </tr>
@@ -213,13 +212,13 @@
           </tr>
           <tr>
             <th scope="row">Texture in this export</th>
-            <td>Diffuse + normal (external JPGs, <span class="no">not supplied</span>)</td>
-            <td class="best">4096² color, normal, AO and roughness, embedded</td>
+            <td class="best">8192² color + normal <span class="hint">shown here at 4096² for phones</span></td>
+            <td>4096² color, normal, AO and roughness, embedded</td>
             <td>1024² color JPG</td>
           </tr>
           <tr>
             <th scope="row">File size</th>
-            <td class="num">4.6 MB <span class="hint">geometry only</span></td>
+            <td class="num">4.6 MB GLB + 6.4 MB JPGs</td>
             <td class="num">4.6 MB</td>
             <td class="num best">0.94 MB OBJ + 0.14 MB JPG</td>
           </tr>
@@ -267,7 +266,8 @@
   <section class="notes">
     <h2>Notes</h2>
     <ul>
-      <li><strong>RealityScan textures.</strong> The GLB points to <code>tex_u0_v0_diffuse.jpg</code> and <code>tex_u0_v0_normal.jpg</code>, but those two files were not in the export folder. If you re-export with embedded textures, or supply the two JPGs, this model will show its full 8K color.</li>
+      <li><strong>RealityScan textures.</strong> RealityScan exports the 8K color and normal maps as separate JPGs next to the GLB. They are packed into the GLB here. The viewer uses a 4096² copy, because two 8K maps need about 0.5&nbsp;GB of graphics memory and that fails on many phones. The full-resolution file is <a href="https://snail923.github.io/cake-scan-showdown/realityscan_8k.glb">realityscan_8k.glb</a> (11&nbsp;MB).</li>
+      <li><strong>Table surface.</strong> RealityScan kept a rectangle of the table under the cake, while Polycam and KIRI cut it away. Cropping the reconstruction region tighter before export would remove it.</li>
       <li><strong>KIRI conversion.</strong> KIRI's OBJ + MTL + JPG was converted to GLB without changing the mesh, so it can be shown in AR. The free GLB export at 4K would look sharper than the 1K texture in this file.</li>
       <li><strong>AR on a table.</strong> Android uses Scene Viewer or WebXR; iPhone uses AR Quick Look, with the USDZ file generated automatically from the GLB. Point the camera at the table until the surface is detected, then tap to place the cake. Pinch to resize it.</li>
       <li><strong>Scale.</strong> A phone camera without LiDAR can't measure real-world size, so each app guessed a different one. All three models start at the same 30&nbsp;cm footprint.</li>
