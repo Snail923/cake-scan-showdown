@@ -52,7 +52,11 @@
   .toolbar input { accent-color: var(--accent); width: 16px; height: 16px; }
 
   .viewers { display: grid; gap: 16px; grid-template-columns: 1fr; }
-  @media (min-width: 720px) { .viewers { grid-template-columns: repeat(2, 1fr); } }
+  @media (min-width: 720px) {
+    .viewers { grid-template-columns: repeat(2, 1fr); }
+    .card:last-child:nth-child(odd) { grid-column: 1 / -1; }
+    .card:last-child:nth-child(odd) model-viewer { aspect-ratio: 2 / 1; }
+  }
   .card { background: var(--surface); border: 1px solid var(--rule); border-radius: 14px; overflow: hidden; display: flex; flex-direction: column; }
   .card-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; padding: 14px 16px 10px; }
   .card-head h2 { font: 700 21px/1.1 var(--display); margin: 0; }
@@ -82,7 +86,7 @@
   <header>
     <span class="eyebrow">3D scan benchmark · one cake, three apps · mid-range Android phone</span>
     <h1>Cake Scan Showdown</h1>
-    <p>The same cake captured with RealityScan, Polycam and KIRI Engine, including a second KIRI version cleaned up and cropped to the cake alone. Drag to orbit each model, pinch or scroll to zoom, and tap <strong>View on your table</strong> on a phone to place it in AR (iPhone and Android).</p>
+    <p>The same cake captured with RealityScan, Polycam and KIRI Engine, plus a full-resolution RealityScan export and a KIRI version cleaned up and cropped to the cake alone. Drag to orbit each model, pinch or scroll to zoom, and tap <strong>View on your table</strong> on a phone to place it in AR (iPhone and Android).</p>
   </header>
 
   <div class="toolbar">
@@ -93,7 +97,7 @@
 
   <div class="viewers">
     <article class="card">
-      <div class="card-head"><h2>RealityScan</h2></div>
+      <div class="card-head"><h2>RealityScan</h2><span class="tag">In wrapper</span></div>
       <model-viewer id="mv-rs" src="realityscan_textured.glb" alt="RealityScan photogrammetry scan of the cake"
         camera-controls touch-action="pan-y" shadow-intensity="1" exposure="1.05"
         ar ar-modes="webxr scene-viewer quick-look" ar-placement="floor" ar-scale="auto"
@@ -109,8 +113,8 @@
     </article>
 
     <article class="card">
-      <div class="card-head"><h2>Polycam</h2></div>
-      <model-viewer id="mv-pc" src="polycam.glb" alt="Polycam scan of the cake"
+      <div class="card-head"><h2>RealityScan</h2><span class="tag">Full resolution · 8K</span></div>
+      <model-viewer id="mv-rs-full" src="realityscan_full.glb" alt="RealityScan scan of the unwrapped marble cake on a plate, full-resolution 8K textures"
         camera-controls touch-action="pan-y" shadow-intensity="1" exposure="1.05"
         ar ar-modes="webxr scene-viewer quick-look" ar-placement="floor" ar-scale="auto"
         camera-orbit="30deg 65deg auto" interaction-prompt="none">
@@ -118,9 +122,9 @@
         <span class="no-ar">AR opens on a phone</span>
       </model-viewer>
       <dl class="stats">
-        <div><dt>Triangles</dt><dd>57,432</dd></div>
-        <div><dt>Texture</dt><dd>4K × 4 maps</dd></div>
-        <div><dt>Format</dt><dd>glTF</dd></div>
+        <div><dt>Triangles</dt><dd>95,334</dd></div>
+        <div><dt>Texture</dt><dd>8K color + normal</dd></div>
+        <div><dt>Format</dt><dd>OBJ→GLB</dd></div>
       </dl>
     </article>
 
@@ -153,6 +157,22 @@
         <div><dt>Triangles</dt><dd>24,065</dd></div>
         <div><dt>Texture</dt><dd>4K</dd></div>
         <div><dt>Format</dt><dd>OBJ→GLB</dd></div>
+      </dl>
+    </article>
+
+    <article class="card">
+      <div class="card-head"><h2>Polycam</h2></div>
+      <model-viewer id="mv-pc" src="polycam.glb" alt="Polycam scan of the cake"
+        camera-controls touch-action="pan-y" shadow-intensity="1" exposure="1.05"
+        ar ar-modes="webxr scene-viewer quick-look" ar-placement="floor" ar-scale="auto"
+        camera-orbit="30deg 65deg auto" interaction-prompt="none">
+        <button slot="ar-button" class="ar-btn">View on your table</button>
+        <span class="no-ar">AR opens on a phone</span>
+      </model-viewer>
+      <dl class="stats">
+        <div><dt>Triangles</dt><dd>57,432</dd></div>
+        <div><dt>Texture</dt><dd>4K × 4 maps</dd></div>
+        <div><dt>Format</dt><dd>glTF</dd></div>
       </dl>
     </article>
   </div>
