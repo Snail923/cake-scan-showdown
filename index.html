@@ -51,12 +51,12 @@
   .toolbar label { display: inline-flex; gap: 8px; align-items: center; cursor: pointer; color: var(--ink); }
   .toolbar input { accent-color: var(--accent); width: 16px; height: 16px; }
 
-  .viewers { display: grid; gap: 16px; grid-template-columns: repeat(auto-fit, minmax(290px, 1fr)); }
+  .viewers { display: grid; gap: 16px; grid-template-columns: 1fr; }
+  @media (min-width: 720px) { .viewers { grid-template-columns: repeat(2, 1fr); } }
   .card { background: var(--surface); border: 1px solid var(--rule); border-radius: 14px; overflow: hidden; display: flex; flex-direction: column; }
   .card-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; padding: 14px 16px 10px; }
   .card-head h2 { font: 700 21px/1.1 var(--display); margin: 0; }
-  .rank { font: 500 12px/1 var(--mono); padding: 5px 8px; border-radius: 999px; background: var(--stage); color: var(--muted); white-space: nowrap; }
-  .rank.first { background: var(--accent); color: var(--accent-ink); }
+  .tag { font: 500 12px/1 var(--mono); padding: 5px 8px; border-radius: 999px; background: var(--accent-soft); color: var(--accent); white-space: nowrap; }
 
   model-viewer { width: 100%; aspect-ratio: 1 / 1; max-width: 100%; background: var(--stage); --poster-color: transparent; --progress-bar-color: var(--accent); }
   .ar-btn {
@@ -69,36 +69,11 @@
   .no-ar { position: absolute; left: 12px; bottom: 12px; right: 12px; text-align: center; font: 12px/1.35 var(--mono); color: var(--muted); }
   model-viewer[data-ar-ok] .no-ar { display: none; }
 
-  .notice { margin: 0; padding: 9px 16px; font-size: 13px; background: var(--warn-soft); color: var(--warn); border-top: 1px solid var(--rule); }
-  .stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1px; background: var(--rule); border-top: 1px solid var(--rule); }
+    .stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1px; background: var(--rule); border-top: 1px solid var(--rule); }
   .stats div { background: var(--surface); padding: 10px 14px; }
   .stats dt { font: 500 11px/1.2 var(--mono); text-transform: uppercase; letter-spacing: .06em; color: var(--muted); }
   .stats dd { margin: 4px 0 0; font: 500 16px/1.2 var(--mono); font-variant-numeric: tabular-nums; }
 
-  section.compare { margin-top: 44px; }
-  section.compare h2, section.notes h2 { font: 700 26px/1.15 var(--display); margin: 0 0 6px; letter-spacing: -.01em; }
-  .sub { color: var(--muted); margin: 0 0 16px; max-width: 70ch; }
-  .table-scroll { overflow-x: auto; border: 1px solid var(--rule); border-radius: 14px; background: var(--surface); }
-  table { border-collapse: collapse; width: 100%; min-width: 720px; font-size: 14px; }
-  th, td { text-align: left; padding: 11px 14px; border-bottom: 1px solid var(--rule); vertical-align: top; }
-  tbody tr:last-child th, tbody tr:last-child td { border-bottom: 0; }
-  thead th { font: 700 17px/1.2 var(--display); background: var(--stage); }
-  thead th:first-child { font: 500 11px/1.2 var(--mono); text-transform: uppercase; letter-spacing: .06em; color: var(--muted); }
-  tbody th { font: 500 12px/1.35 var(--mono); text-transform: uppercase; letter-spacing: .05em; color: var(--muted); width: 190px; }
-  td.num { font-family: var(--mono); font-variant-numeric: tabular-nums; }
-  tr.group th { background: var(--ground); color: var(--accent); padding-block: 8px; }
-  td.best { background: var(--accent-soft); }
-  .hint { display: block; color: var(--muted); font-size: 12.5px; margin-top: 2px; }
-  .dots { display: inline-flex; gap: 4px; vertical-align: middle; margin-right: 8px; }
-  .dots i { width: 10px; height: 10px; border-radius: 50%; background: var(--dot-off); }
-  .dots i.on { background: var(--accent); }
-  .yes { color: var(--good); font-weight: 600; }
-  .no { color: var(--warn); font-weight: 600; }
-
-  section.notes { margin-top: 44px; display: grid; gap: 14px; max-width: 75ch; }
-  section.notes ul { margin: 0; padding-left: 20px; display: grid; gap: 8px; }
-  section.notes li::marker { color: var(--accent); }
-  code { font: 13px var(--mono); background: var(--stage); padding: 1px 5px; border-radius: 4px; }
 
   @media (prefers-reduced-motion: reduce) { * { scroll-behavior: auto !important; } }
 </style>
@@ -107,18 +82,18 @@
   <header>
     <span class="eyebrow">3D scan benchmark · one cake, three apps · mid-range Android phone</span>
     <h1>Cake Scan Showdown</h1>
-    <p>The same cake captured with RealityScan, Polycam and KIRI Engine on the free tier of each app. Drag to orbit each model, pinch or scroll to zoom, and tap <strong>View on your table</strong> on a phone to place it in AR (iPhone and Android).</p>
+    <p>The same cake captured with RealityScan, Polycam and KIRI Engine, including a second KIRI version cleaned up and cropped to the cake alone. Drag to orbit each model, pinch or scroll to zoom, and tap <strong>View on your table</strong> on a phone to place it in AR (iPhone and Android).</p>
   </header>
 
   <div class="toolbar">
-    <label for="sync"><input type="checkbox" id="sync" checked> Rotate all three together</label>
+    <label for="sync"><input type="checkbox" id="sync" checked> Rotate all models together</label>
     <label for="spin"><input type="checkbox" id="spin"> Auto-rotate</label>
     <span>All models are scaled to the same 30&nbsp;cm footprint so you can compare them side by side.</span>
   </div>
 
   <div class="viewers">
     <article class="card">
-      <div class="card-head"><h2>RealityScan</h2><span class="rank first">#1 geometry</span></div>
+      <div class="card-head"><h2>RealityScan</h2></div>
       <model-viewer id="mv-rs" src="realityscan_textured.glb" alt="RealityScan photogrammetry scan of the cake"
         camera-controls touch-action="pan-y" shadow-intensity="1" exposure="1.05"
         ar ar-modes="webxr scene-viewer quick-look" ar-placement="floor" ar-scale="auto"
@@ -134,7 +109,7 @@
     </article>
 
     <article class="card">
-      <div class="card-head"><h2>Polycam</h2><span class="rank">#2 overall</span></div>
+      <div class="card-head"><h2>Polycam</h2></div>
       <model-viewer id="mv-pc" src="polycam.glb" alt="Polycam scan of the cake"
         camera-controls touch-action="pan-y" shadow-intensity="1" exposure="1.05"
         ar ar-modes="webxr scene-viewer quick-look" ar-placement="floor" ar-scale="auto"
@@ -150,7 +125,7 @@
     </article>
 
     <article class="card">
-      <div class="card-head"><h2>KIRI Engine</h2><span class="rank">#3 overall</span></div>
+      <div class="card-head"><h2>KIRI Engine</h2><span class="tag">8K export</span></div>
       <model-viewer id="mv-kiri" src="kiri_hd.glb" alt="KIRI Engine scan of the cake"
         camera-controls touch-action="pan-y" shadow-intensity="1" exposure="1.05"
         ar ar-modes="webxr scene-viewer quick-look" ar-placement="floor" ar-scale="auto"
@@ -164,115 +139,24 @@
         <div><dt>Format</dt><dd>OBJ→GLB</dd></div>
       </dl>
     </article>
+
+    <article class="card">
+      <div class="card-head"><h2>KIRI Engine</h2><span class="tag">Polished &amp; cropped</span></div>
+      <model-viewer id="mv-kiri-p" src="kiri_polished.glb" alt="KIRI Engine scan of the cake, cleaned up and cropped to the cake only"
+        camera-controls touch-action="pan-y" shadow-intensity="1" exposure="1.05"
+        ar ar-modes="webxr scene-viewer quick-look" ar-placement="floor" ar-scale="auto"
+        camera-orbit="30deg 65deg auto" interaction-prompt="none">
+        <button slot="ar-button" class="ar-btn">View on your table</button>
+        <span class="no-ar">AR opens on a phone</span>
+      </model-viewer>
+      <dl class="stats">
+        <div><dt>Triangles</dt><dd>24,065</dd></div>
+        <div><dt>Texture</dt><dd>4K</dd></div>
+        <div><dt>Format</dt><dd>OBJ→GLB</dd></div>
+      </dl>
+    </article>
   </div>
 
-  <section class="compare">
-    <h2>Quality comparison</h2>
-    <p class="sub">The mesh and texture figures were measured from the exported files. The ratings for ease of capture come from how the scanning sessions went. Shaded cells mark the best result in each row.</p>
-    <div class="table-scroll">
-      <table>
-        <thead>
-          <tr><th scope="col">Criterion</th><th scope="col">RealityScan</th><th scope="col">Polycam</th><th scope="col">KIRI Engine</th></tr>
-        </thead>
-        <tbody>
-          <tr class="group"><th colspan="4" scope="colgroup">Overall</th></tr>
-          <tr>
-            <th scope="row">Quality rank</th>
-            <td class="best"><strong>1st</strong><span class="hint">Most detailed geometry and the highest free texture resolution</span></td>
-            <td><strong>2nd</strong><span class="hint">Clean result with full PBR textures</span></td>
-            <td><strong>3rd</strong><span class="hint">Sharp 8K texture on a light mesh; shape is smoothed</span></td>
-          </tr>
-          <tr>
-            <th scope="row">Geometry detail</th>
-            <td class="best"><span class="dots"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i></span>Sharpest edges</td>
-            <td><span class="dots"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i></i></span>Good</td>
-            <td><span class="dots"><i class="on"></i><i class="on"></i><i></i><i></i><i></i></span>Smoothed, faceted</td>
-          </tr>
-          <tr>
-            <th scope="row">Texture detail</th>
-            <td class="best"><span class="dots"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i></span>8K</td>
-            <td><span class="dots"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i></i></span>4K</td>
-            <td><span class="dots"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i></i></span>8K on a light mesh</td>
-          </tr>
-          <tr>
-            <th scope="row">Ease of capture</th>
-            <td><span class="dots"><i class="on"></i><i class="on"></i><i></i><i></i><i></i></span>Needs careful, full coverage</td>
-            <td class="best"><span class="dots"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i></span>Worked first time</td>
-            <td class="best"><span class="dots"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i></span>Easy, especially on a turntable</td>
-          </tr>
-
-          <tr class="group"><th colspan="4" scope="colgroup">Measured from the exported files</th></tr>
-          <tr>
-            <th scope="row">Triangles</th>
-            <td class="num best">156,450</td><td class="num">57,432</td><td class="num">19,785</td>
-          </tr>
-          <tr>
-            <th scope="row">Vertices</th>
-            <td class="num best">92,703</td><td class="num">32,980</td><td class="num">9,911</td>
-          </tr>
-          <tr>
-            <th scope="row">Texture in this export</th>
-            <td class="best">8192² color + normal <span class="hint">shown here at 4096² for phones</span></td>
-            <td>4096² color, normal, AO and roughness, embedded</td>
-            <td>8192² color JPG <span class="hint">Advanced Export; shown here at 4096² for phones</span></td>
-          </tr>
-          <tr>
-            <th scope="row">File size</th>
-            <td class="num">4.6 MB GLB + 6.4 MB JPGs</td>
-            <td class="num">4.6 MB</td>
-            <td class="num best">1.4 MB OBJ + 3.0 MB JPG</td>
-          </tr>
-          <tr>
-            <th scope="row">Raw scan size</th>
-            <td class="num">27 × 42 cm</td>
-            <td class="num">97 × 79 cm</td>
-            <td class="num">69 × 82 cm</td>
-          </tr>
-
-          <tr class="group"><th colspan="4" scope="colgroup">Free tier &amp; workflow</th></tr>
-          <tr>
-            <th scope="row">Max free texture</th>
-            <td class="best">8K</td><td>4K</td><td>4K <span class="hint">8K via Advanced Export (paid)</span></td>
-          </tr>
-          <tr>
-            <th scope="row">Free export formats</th>
-            <td class="best">GLB</td>
-            <td>glTF only <span class="hint">OBJ, FBX and GLB are paid</span></td>
-            <td>GLB (4K) <span class="hint">this file was exported as OBJ (Advanced Export)</span></td>
-          </tr>
-          <tr>
-            <th scope="row">Capture input</th>
-            <td>Photos (photogrammetry)</td>
-            <td>Photos</td>
-            <td class="best">Photos or LiDAR</td>
-          </tr>
-          <tr>
-            <th scope="row">First-try success</th>
-            <td><span class="no">No</span> <span class="hint">Every side of the object has to be covered</span></td>
-            <td class="best"><span class="yes">Yes</span></td>
-            <td class="best"><span class="yes">Yes</span></td>
-          </tr>
-          <tr>
-            <th scope="row">Best for</th>
-            <td>Final, high-detail assets</td>
-            <td>Fast, reliable scans with good textures</td>
-            <td>Turntable product shots and quick drafts</td>
-          </tr>
-        </tbody>
-      </table>
-    </div>
-  </section>
-
-  <section class="notes">
-    <h2>Notes</h2>
-    <ul>
-      <li><strong>RealityScan textures.</strong> RealityScan exports the 8K color and normal maps as separate JPGs next to the GLB. They are packed into the GLB here. The viewer uses a 4096² copy, because two 8K maps need about 0.5&nbsp;GB of graphics memory and that fails on many phones. The full-resolution file is <a href="https://snail923.github.io/cake-scan-showdown/realityscan_8k.glb">realityscan_8k.glb</a> (11&nbsp;MB).</li>
-      <li><strong>Table surface.</strong> RealityScan kept a rectangle of the table under the cake, while Polycam and KIRI cut it away. Cropping the reconstruction region tighter before export would remove it.</li>
-      <li><strong>KIRI conversion.</strong> This is KIRI's Advanced Export: an OBJ of quads with an 8192² texture. It was converted to GLB without changing the mesh, so it can be shown in AR. The viewer uses a 4096² copy of the texture, and the full-resolution file is <a href="https://snail923.github.io/cake-scan-showdown/kiri_8k.glb">kiri_8k.glb</a> (4.4&nbsp;MB).</li>
-      <li><strong>AR on a table.</strong> Android uses Scene Viewer or WebXR; iPhone uses AR Quick Look, with the USDZ file generated automatically from the GLB. Point the camera at the table until the surface is detected, then tap to place the cake. Pinch to resize it.</li>
-      <li><strong>Scale.</strong> A phone camera without LiDAR can't measure real-world size, so each app guessed a different one. All three models start at the same 30&nbsp;cm footprint.</li>
-    </ul>
-  </section>
 </div>
 
 <script type="module">
