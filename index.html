@@ -86,13 +86,13 @@
   <header>
     <span class="eyebrow">3D scan benchmark · one cake, three apps · mid-range Android phone</span>
     <h1>Cake Scan Showdown</h1>
-    <p>The same cake captured with RealityScan, Polycam and KIRI Engine, plus a full-resolution RealityScan export and a KIRI version cleaned up and cropped to the cake alone. Drag to orbit each model, pinch or scroll to zoom, and tap <strong>View on your table</strong> on a phone to place it in AR (iPhone and Android).</p>
+    <p>The same cake captured with RealityScan, Polycam and KIRI Engine, with a second, full-resolution or cleaned-up version from each app. Drag to orbit each model, pinch or scroll to zoom, and tap <strong>View on your table</strong> on a phone to place it in AR (iPhone and Android).</p>
   </header>
 
   <div class="toolbar">
     <label for="sync"><input type="checkbox" id="sync" checked> Rotate all models together</label>
     <label for="spin"><input type="checkbox" id="spin"> Auto-rotate</label>
-    <span>All models are scaled to the same 30&nbsp;cm footprint so you can compare them side by side.</span>
+    <span>Models are scaled to a similar size (about 30&nbsp;cm across) for side-by-side comparison.</span>
   </div>
 
   <div class="viewers">
@@ -161,7 +161,7 @@
     </article>
 
     <article class="card">
-      <div class="card-head"><h2>Polycam</h2></div>
+      <div class="card-head"><h2>Polycam</h2><span class="tag">First scan</span></div>
       <model-viewer id="mv-pc" src="polycam.glb" alt="Polycam scan of the cake"
         camera-controls touch-action="pan-y" shadow-intensity="1" exposure="1.05"
         ar ar-modes="webxr scene-viewer quick-look" ar-placement="floor" ar-scale="auto"
@@ -173,6 +173,22 @@
         <div><dt>Triangles</dt><dd>57,432</dd></div>
         <div><dt>Texture</dt><dd>4K × 4 maps</dd></div>
         <div><dt>Format</dt><dd>glTF</dd></div>
+      </dl>
+    </article>
+
+    <article class="card">
+      <div class="card-head"><h2>Polycam</h2><span class="tag">Full resolution</span></div>
+      <model-viewer id="mv-pc-full" src="polycam_full.glb" alt="Polycam full-resolution scan of the marble cake on its plate and turntable"
+        camera-controls touch-action="pan-y" shadow-intensity="1" exposure="1.05"
+        ar ar-modes="webxr scene-viewer quick-look" ar-placement="floor" ar-scale="auto"
+        camera-target="0m 0.08m 0m" camera-orbit="30deg 65deg 0.75m" max-camera-orbit="auto auto 2m" interaction-prompt="none">
+        <button slot="ar-button" class="ar-btn">View on your table</button>
+        <span class="no-ar">AR opens on a phone</span>
+      </model-viewer>
+      <dl class="stats">
+        <div><dt>Triangles</dt><dd>50,000</dd></div>
+        <div><dt>Texture</dt><dd>4K × 3 maps</dd></div>
+        <div><dt>Format</dt><dd>GLB</dd></div>
       </dl>
     </article>
   </div>
