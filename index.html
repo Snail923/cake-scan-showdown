@@ -1,3 +1,8 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Cake Scan Showdown</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -63,7 +68,7 @@
   .card-head h2 { font: 700 21px/1.1 var(--display); margin: 0; }
   .tag { font: 500 12px/1 var(--mono); padding: 5px 8px; border-radius: 999px; background: var(--accent-soft); color: var(--accent); white-space: nowrap; }
 
-  model-viewer { width: 100%; aspect-ratio: 1 / 1; max-width: 100%; background: var(--stage); --poster-color: transparent; --progress-bar-color: var(--accent); }
+  model-viewer { display: block; width: 100%; aspect-ratio: 1 / 1; max-width: 100%; background: var(--stage); --poster-color: transparent; --progress-bar-color: var(--accent); }
   .ar-btn {
     position: absolute; left: 50%; bottom: 14px; transform: translateX(-50%);
     font: 600 14px/1 var(--body); border: 0; border-radius: 999px; padding: 11px 16px;
@@ -84,6 +89,8 @@
 
   @media (prefers-reduced-motion: reduce) { * { scroll-behavior: auto !important; } }
 </style>
+</head>
+<body>
 
 <div class="wrap">
   <header>
@@ -101,7 +108,7 @@
   <div class="viewers">
     <article class="card">
       <div class="card-head"><h2>RealityScan</h2><span class="tag">In wrapper</span></div>
-      <model-viewer id="mv-rs" src="realityscan_textured.glb" ios-src="realityscan_textured.usdz" alt="RealityScan photogrammetry scan of the cake"
+      <model-viewer id="mv-rs" data-src="realityscan_textured.glb" ios-src="realityscan_textured.usdz" alt="RealityScan photogrammetry scan of the cake"
         camera-controls touch-action="pan-y" shadow-intensity="1" exposure="1.05"
         ar ar-modes="webxr scene-viewer quick-look" ar-placement="floor" ar-scale="auto"
         camera-orbit="30deg 65deg auto" interaction-prompt="none">
@@ -118,7 +125,7 @@
 
     <article class="card">
       <div class="card-head"><h2>RealityScan</h2><span class="tag">Full resolution · 8K</span></div>
-      <model-viewer id="mv-rs-full" src="realityscan_full.glb" ios-src="realityscan_full.usdz" alt="RealityScan scan of the unwrapped marble cake on a plate, full-resolution 8K textures"
+      <model-viewer id="mv-rs-full" data-src="realityscan_full.glb" ios-src="realityscan_full.usdz" alt="RealityScan scan of the unwrapped marble cake on a plate, full-resolution 8K textures"
         camera-controls touch-action="pan-y" shadow-intensity="1" exposure="1.05"
         ar ar-modes="webxr scene-viewer quick-look" ar-placement="floor" ar-scale="auto"
         camera-orbit="30deg 65deg auto" interaction-prompt="none">
@@ -135,7 +142,7 @@
 
     <article class="card">
       <div class="card-head"><h2>KIRI Engine</h2><span class="tag">8K export</span></div>
-      <model-viewer id="mv-kiri" src="kiri_hd.glb" ios-src="kiri_hd.usdz" alt="KIRI Engine scan of the cake"
+      <model-viewer id="mv-kiri" data-src="kiri_hd.glb" ios-src="kiri_hd.usdz" alt="KIRI Engine scan of the cake"
         camera-controls touch-action="pan-y" shadow-intensity="1" exposure="1.05"
         ar ar-modes="webxr scene-viewer quick-look" ar-placement="floor" ar-scale="auto"
         camera-orbit="30deg 65deg auto" interaction-prompt="none">
@@ -152,7 +159,7 @@
 
     <article class="card">
       <div class="card-head"><h2>KIRI Engine</h2><span class="tag">Polished &amp; cropped</span></div>
-      <model-viewer id="mv-kiri-p" src="kiri_polished.glb" ios-src="kiri_polished.usdz" alt="KIRI Engine scan of the cake, cleaned up and cropped to the cake only"
+      <model-viewer id="mv-kiri-p" data-src="kiri_polished.glb" ios-src="kiri_polished.usdz" alt="KIRI Engine scan of the cake, cleaned up and cropped to the cake only"
         camera-controls touch-action="pan-y" shadow-intensity="1" exposure="1.05"
         ar ar-modes="webxr scene-viewer quick-look" ar-placement="floor" ar-scale="auto"
         camera-orbit="30deg 65deg auto" interaction-prompt="none">
@@ -169,7 +176,7 @@
 
     <article class="card">
       <div class="card-head"><h2>Polycam</h2><span class="tag">First scan</span></div>
-      <model-viewer id="mv-pc" src="polycam.glb" ios-src="polycam.usdz" alt="Polycam scan of the cake"
+      <model-viewer id="mv-pc" data-src="polycam.glb" ios-src="polycam.usdz" alt="Polycam scan of the cake"
         camera-controls touch-action="pan-y" shadow-intensity="1" exposure="1.05"
         ar ar-modes="webxr scene-viewer quick-look" ar-placement="floor" ar-scale="auto"
         camera-orbit="30deg 65deg auto" interaction-prompt="none">
@@ -186,7 +193,7 @@
 
     <article class="card">
       <div class="card-head"><h2>Polycam</h2><span class="tag">Full resolution</span></div>
-      <model-viewer id="mv-pc-full" src="polycam_full.glb" ios-src="polycam_full.usdz" alt="Polycam full-resolution scan of the marble cake on its plate and turntable"
+      <model-viewer id="mv-pc-full" data-src="polycam_full.glb" ios-src="polycam_full.usdz" alt="Polycam full-resolution scan of the marble cake on its plate and turntable"
         camera-controls touch-action="pan-y" shadow-intensity="1" exposure="1.05"
         ar ar-modes="webxr scene-viewer quick-look" ar-placement="floor" ar-scale="auto"
         camera-target="0m 0.08m 0m" camera-orbit="30deg 65deg 0.75m" max-camera-orbit="auto auto 2m" interaction-prompt="none">
@@ -204,39 +211,70 @@
 
 </div>
 
-<script type="module">
-  const viewers = [...document.querySelectorAll("model-viewer")];
-
-  // iPhone/iPad: open AR Quick Look with a plain rel="ar" link to the prebuilt USDZ.
-  // Quick Look shares Safari's memory, so the 3D viewers are unloaded before it opens
-  // and reloaded when the page is shown again.
-  if (document.createElement("a").relList.supports("ar")) {
-    const lighter = { "realityscan_full.glb": "realityscan_full_4k.glb" };
-    let unloaded = false;
-    const restore = () => {
-      if (!unloaded) return;
-      unloaded = false;
-      viewers.forEach((mv) => { mv.src = mv.dataset.src; });
-    };
-    viewers.forEach((mv) => {
+<script>
+  // Runs before <model-viewer> loads, so nothing heavy is fetched by accident.
+  // iPhone/iPad: Safari gives a page far less memory than Android does, so iOS gets
+  // 2048-px texture copies, only viewers on screen hold a model, and AR opens the
+  // prebuilt USDZ through a plain Quick Look link.
+  (function () {
+    var probe = document.createElement("a");
+    var ios = !!(probe.relList && probe.relList.supports && probe.relList.supports("ar"));
+    var viewers = Array.prototype.slice.call(document.querySelectorAll("model-viewer"));
+    if (!ios) {
+      viewers.forEach(function (mv) { mv.setAttribute("src", mv.dataset.src); });
+      return;
+    }
+    var visible = new Set();
+    var arOpen = false;
+    function apply() {
+      viewers.forEach(function (mv) {
+        var want = !arOpen && visible.has(mv);
+        if (want && mv.getAttribute("src") !== mv.dataset.src) mv.setAttribute("src", mv.dataset.src);
+        else if (!want && mv.hasAttribute("src")) mv.removeAttribute("src");
+      });
+    }
+    function back() {
+      if (!arOpen) return;
+      arOpen = false;
+      setTimeout(check, 400);
+    }
+    viewers.forEach(function (mv) {
       mv.removeAttribute("ar");
       mv.dataset.arOk = "";
-      const file = mv.getAttribute("src");
-      if (lighter[file]) mv.src = lighter[file];
-      mv.dataset.src = mv.getAttribute("src");
-      const link = mv.querySelector(".ios-ar");
+      mv.dataset.src = mv.dataset.src.replace(/\.glb$/, "_m.glb");
+      var link = mv.querySelector(".ios-ar");
       if (!link) return;
       link.hidden = false;
-      link.addEventListener("click", () => {
-        unloaded = true;
-        viewers.forEach((other) => other.removeAttribute("src"));
-      });
+      link.addEventListener("click", function () { arOpen = true; apply(); });
     });
-    document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") setTimeout(restore, 300); });
-    window.addEventListener("pageshow", restore);
-    window.addEventListener("focus", () => setTimeout(restore, 300));
-    document.addEventListener("touchstart", () => setTimeout(restore, 300), { passive: true });
-  }
+    // A viewer holds a model only while it is on screen (with 100px of slack).
+    function check() {
+      var h = window.innerHeight;
+      viewers.forEach(function (mv) {
+        var r = mv.getBoundingClientRect();
+        if (r.height > 0 && r.bottom > -100 && r.top < h + 100) visible.add(mv); else visible.delete(mv);
+      });
+      apply();
+    }
+    var timer;
+    function schedule() { clearTimeout(timer); timer = setTimeout(check, 150); }
+    window.addEventListener("scroll", schedule, { passive: true });
+    window.addEventListener("resize", schedule);
+    window.addEventListener("load", check);
+    if (window.customElements) customElements.whenDefined("model-viewer").then(check);
+    check();
+    document.addEventListener("visibilitychange", function () { if (document.visibilityState === "visible") back(); });
+    window.addEventListener("pageshow", back);
+    window.addEventListener("focus", back);
+    document.addEventListener("touchstart", back, { passive: true });
+  })();
+</script>
+
+<script type="module">
+  // Don't keep unloaded models in memory.
+  customElements.whenDefined("model-viewer").then(() => { customElements.get("model-viewer").modelCacheSize = 0; });
+  const viewers = [...document.querySelectorAll("model-viewer")];
+
   const sync = document.getElementById("sync");
   const spin = document.getElementById("spin");
   let syncing = false;
@@ -260,3 +298,5 @@
     });
   });
 </script>
+</body>
+</html>
