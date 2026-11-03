@@ -207,14 +207,35 @@
 <script type="module">
   const viewers = [...document.querySelectorAll("model-viewer")];
 
-  // iPhone/iPad: open AR Quick Look with a plain rel="ar" link to the prebuilt USDZ
+  // iPhone/iPad: open AR Quick Look with a plain rel="ar" link to the prebuilt USDZ.
+  // Quick Look shares Safari's memory, so the 3D viewers are unloaded before it opens
+  // and reloaded when the page is shown again.
   if (document.createElement("a").relList.supports("ar")) {
+    const lighter = { "realityscan_full.glb": "realityscan_full_4k.glb" };
+    let unloaded = false;
+    const restore = () => {
+      if (!unloaded) return;
+      unloaded = false;
+      viewers.forEach((mv) => { mv.src = mv.dataset.src; });
+    };
     viewers.forEach((mv) => {
       mv.removeAttribute("ar");
       mv.dataset.arOk = "";
+      const file = mv.getAttribute("src");
+      if (lighter[file]) mv.src = lighter[file];
+      mv.dataset.src = mv.getAttribute("src");
       const link = mv.querySelector(".ios-ar");
-      if (link) link.hidden = false;
+      if (!link) return;
+      link.hidden = false;
+      link.addEventListener("click", () => {
+        unloaded = true;
+        viewers.forEach((other) => other.removeAttribute("src"));
+      });
     });
+    document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") setTimeout(restore, 300); });
+    window.addEventListener("pageshow", restore);
+    window.addEventListener("focus", () => setTimeout(restore, 300));
+    document.addEventListener("touchstart", () => setTimeout(restore, 300), { passive: true });
   }
   const sync = document.getElementById("sync");
   const spin = document.getElementById("spin");
