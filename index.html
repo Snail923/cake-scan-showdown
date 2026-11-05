@@ -96,7 +96,7 @@
   <header>
     <span class="eyebrow">3D scan benchmark · one cake, three apps + two PC tools · mid-range Android phone</span>
     <h1>Cake Scan Showdown</h1>
-    <p>The same cake captured with RealityScan, Polycam and KIRI Engine, with a second, full-resolution or cleaned-up version from each app, plus two PC scans: one made in Agisoft Metashape from 241 phone photos, and one made in the free, open-source Meshroom from 245 photos. Drag to orbit each model, pinch or scroll to zoom, and tap <strong>View on your table</strong> on a phone to place it in AR (iPhone and Android).</p>
+    <p>The same cake captured with RealityScan, Polycam and KIRI Engine, with a second, full-resolution or cleaned-up version from each app, plus two PC scans: one made in Agisoft Metashape from 241 phone photos, and a second capture of 245 photos from four heights, processed in both the free, open-source Meshroom and Agisoft Metashape. Drag to orbit each model, pinch or scroll to zoom, and tap <strong>View on your table</strong> on a phone to place it in AR (iPhone and Android).</p>
   </header>
 
   <div class="toolbar">
@@ -236,9 +236,26 @@
         <span class="no-ar">AR opens on a phone</span>
       </model-viewer>
       <dl class="stats">
-        <div><dt>Triangles</dt><dd>362,099</dd></div>
+        <div><dt>Triangles</dt><dd>362,269</dd></div>
         <div><dt>Texture</dt><dd>4K</dd></div>
         <div><dt>Format</dt><dd>OBJ→GLB</dd></div>
+      </dl>
+    </article>
+
+    <article class="card">
+      <div class="card-head"><h2>Agisoft Metashape</h2><span class="tag">Second capture · 4 heights</span></div>
+      <model-viewer id="mv-ms2" data-src="metashape_dish2.glb" ios-src="metashape_dish2.usdz" alt="Agisoft Metashape scan of the marble cake in its paper liner, made on a PC from the same 245 photos used for Meshroom"
+        camera-controls touch-action="pan-y" shadow-intensity="1" exposure="1.05"
+        ar ar-modes="webxr scene-viewer quick-look" ar-placement="floor" ar-scale="auto"
+        camera-orbit="30deg 65deg auto" interaction-prompt="none">
+        <button slot="ar-button" class="ar-btn">View on your table</button>
+        <a class="ar-btn ios-ar" rel="ar" href="metashape_dish2.usdz" hidden><img src="ar-glyph.png" alt="" width="20" height="20">View on your table</a>
+        <span class="no-ar">AR opens on a phone</span>
+      </model-viewer>
+      <dl class="stats">
+        <div><dt>Triangles</dt><dd>285,068</dd></div>
+        <div><dt>Texture</dt><dd>8K</dd></div>
+        <div><dt>Format</dt><dd>GLB</dd></div>
       </dl>
     </article>
   </div>
