@@ -264,22 +264,24 @@
 
 <script>
   // Runs before <model-viewer> loads, so nothing heavy is fetched by accident.
-  // iPhone/iPad: Safari gives a page far less memory than Android does, so iOS gets
-  // 2048-px texture copies, only viewers on screen hold a model, and AR opens the
-  // prebuilt USDZ through a plain Quick Look link.
+  // Phones (iPhone/iPad and Android) get 2048-px texture copies and only viewers on
+  // screen hold a model, so the page loads fast and stays responsive. iOS opens AR
+  // through a plain Quick Look link to the prebuilt USDZ; Android opens Scene Viewer,
+  // a separate app, and the other viewers are freed while it runs.
   (function () {
     var probe = document.createElement("a");
     var ios = !!(probe.relList && probe.relList.supports && probe.relList.supports("ar"));
+    var android = /Android/i.test(navigator.userAgent);
     var viewers = Array.prototype.slice.call(document.querySelectorAll("model-viewer"));
-    if (!ios) {
+    if (!ios && !android) {
       viewers.forEach(function (mv) { mv.setAttribute("src", mv.dataset.src); });
       return;
     }
     var visible = new Set();
-    var arOpen = false;
+    var arOpen = false, arViewer = null;
     function apply() {
       viewers.forEach(function (mv) {
-        var want = !arOpen && visible.has(mv);
+        var want = arOpen ? mv === arViewer : visible.has(mv);
         if (want && mv.getAttribute("src") !== mv.dataset.src) mv.setAttribute("src", mv.dataset.src);
         else if (!want && mv.hasAttribute("src")) mv.removeAttribute("src");
       });
@@ -287,12 +289,22 @@
     function back() {
       if (!arOpen) return;
       arOpen = false;
+      arViewer = null;
       setTimeout(check, 400);
     }
     viewers.forEach(function (mv) {
+      mv.dataset.src = mv.dataset.src.replace(/\.glb$/, "_m.glb");
+      if (android) {
+        mv.setAttribute("ar-modes", "scene-viewer webxr");
+        var button = mv.querySelector("[slot='ar-button']");
+        if (button) button.addEventListener("click", function () { arViewer = mv; arOpen = true; apply(); });
+        mv.addEventListener("ar-status", function (e) {
+          if (e.detail.status === "not-presenting" || e.detail.status === "failed") back();
+        });
+        return;
+      }
       mv.removeAttribute("ar");
       mv.dataset.arOk = "";
-      mv.dataset.src = mv.dataset.src.replace(/\.glb$/, "_m.glb");
       var link = mv.querySelector(".ios-ar");
       if (!link) return;
       link.hidden = false;
@@ -316,8 +328,10 @@
     check();
     document.addEventListener("visibilitychange", function () { if (document.visibilityState === "visible") back(); });
     window.addEventListener("pageshow", back);
-    window.addEventListener("focus", back);
-    document.addEventListener("touchstart", back, { passive: true });
+    if (ios) {
+      window.addEventListener("focus", back);
+      document.addEventListener("touchstart", back, { passive: true });
+    }
   })();
 </script>
 
