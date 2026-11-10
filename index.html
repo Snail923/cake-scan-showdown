@@ -94,9 +94,9 @@
 
 <div class="wrap">
   <header>
-    <span class="eyebrow">3D scan benchmark · one cake, a glass jar and a mini pizza · three apps + two PC tools · mid-range Android phone</span>
+    <span class="eyebrow">3D scan benchmark · one cake, a glass jar and two mini pizzas · three apps + two PC tools · mid-range Android phone</span>
     <h1>Cake Scan Showdown</h1>
-    <p>The same cake captured with RealityScan, Polycam and KIRI Engine, with a second, full-resolution or cleaned-up version from each app, plus two PC scans: one made in Agisoft Metashape from 241 phone photos, and a second capture of 245 photos from four heights, processed in both the free, open-source Meshroom and Agisoft Metashape. The last two cards are extra Meshroom tests. A glass jar of overnight oats (122 photos): the oats, lid and spoon are scanned, but glass cannot be captured by photogrammetry, so the fogged glass patches were removed and the jar wall was modelled as clear glass to the measured size. A mini pizza (180 photos from three heights), with its green pepper kept despite the green backdrop. Drag to orbit each model, pinch or scroll to zoom, and tap <strong>View on your table</strong> on a phone to place it in AR (iPhone and Android).</p>
+    <p>The same cake captured with RealityScan, Polycam and KIRI Engine, with a second, full-resolution or cleaned-up version from each app, plus two PC scans: one made in Agisoft Metashape from 241 phone photos, and a second capture of 245 photos from four heights, processed in both the free, open-source Meshroom and Agisoft Metashape. The last three cards are extra Meshroom tests. A glass jar of overnight oats (122 photos): the oats, lid and spoon are scanned, but glass cannot be captured by photogrammetry, so the fogged glass patches were removed and the jar wall was modelled as clear glass to the measured size. Two mini pizzas (180 and 181 photos from three heights each), with their green peppers kept despite the green backdrop; the second has a glossy ketchup drizzle. Drag to orbit each model, pinch or scroll to zoom, and tap <strong>View on your table</strong> on a phone to place it in AR (iPhone and Android).</p>
   </header>
 
   <div class="toolbar">
@@ -288,6 +288,23 @@
       </model-viewer>
       <dl class="stats">
         <div><dt>Triangles</dt><dd>173,896</dd></div>
+        <div><dt>Texture</dt><dd>8K</dd></div>
+        <div><dt>Format</dt><dd>OBJ→GLB</dd></div>
+      </dl>
+    </article>
+
+    <article class="card">
+      <div class="card-head"><h2>Meshroom</h2><span class="tag">Mini pizza 2 · 181 photos</span></div>
+      <model-viewer id="mv-pizza2" data-src="meshroom_pizza2.glb" ios-src="meshroom_pizza2.usdz" alt="Meshroom scan of a second mini pizza with a ketchup drizzle, cheese, a green pepper ring and a mushroom slice"
+        camera-controls touch-action="pan-y" shadow-intensity="1" exposure="1.05"
+        ar ar-modes="webxr scene-viewer quick-look" ar-placement="floor" ar-scale="auto"
+        camera-orbit="30deg 55deg auto" interaction-prompt="none">
+        <button slot="ar-button" class="ar-btn">View on your table</button>
+        <a class="ar-btn ios-ar" rel="ar" href="meshroom_pizza2.usdz" hidden><img src="ar-glyph.png" alt="" width="20" height="20">View on your table</a>
+        <span class="no-ar">AR opens on a phone</span>
+      </model-viewer>
+      <dl class="stats">
+        <div><dt>Triangles</dt><dd>227,906</dd></div>
         <div><dt>Texture</dt><dd>8K</dd></div>
         <div><dt>Format</dt><dd>OBJ→GLB</dd></div>
       </dl>
