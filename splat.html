@@ -56,6 +56,10 @@
   if (phone) src = src.replace(/\.sog$/, "_m.sog");
   const height = parseFloat(q.get("h") || "0.26");  // model height in metres; it stands on y = 0
   const size = Math.max(height, parseFloat(q.get("w") || "0"));  // frame flat models by their width
+  // GitHub Pages sends big files slowly (about 50 KB/s in Nov 2026 tests), so on the live site the splats come
+  // from jsDelivr's mirror of the repo, pinned to a commit that has them. Bump the hash when a .sog changes.
+  const ASSETS = location.hostname.endsWith("github.io")
+    ? "https://cdn.jsdelivr.net/gh/Snail923/cake-scan-showdown@630bf2a1832cead6014fb25a8dd127ab32f2a90a/" : "";
   const msg = document.getElementById("msg");
   const xrBtn = document.getElementById("xr-btn");
 
@@ -78,7 +82,7 @@
   controls.maxDistance = size * 8;
   controls.update();
 
-  const splat = new SplatMesh({ url: src, fileType: "pcsogszip" });
+  const splat = new SplatMesh({ url: ASSETS + src, fileType: "pcsogszip" });
   scene.add(splat);
   splat.initialized.then(() => { msg.hidden = true; })
     .catch((e) => { msg.textContent = "Could not load the splat"; console.error(e); });
