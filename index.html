@@ -81,7 +81,6 @@
   .no-ar { position: absolute; left: 12px; bottom: 12px; right: 12px; text-align: center; font: 12px/1.35 var(--mono); color: var(--muted); }
   model-viewer[data-ar-ok] .no-ar { display: none; }
   .splat-frame { display: block; width: 100%; aspect-ratio: 1 / 1; border: 0; background: var(--stage); }
-  .splat-wrap { position: relative; }
 
     .stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1px; background: var(--rule); border-top: 1px solid var(--rule); }
   .stats div { background: var(--surface); padding: 10px 14px; }
@@ -98,7 +97,7 @@
   <header>
     <span class="eyebrow">3D scan benchmark · one cake, a glass jar and two mini pizzas · three apps + two PC tools · mid-range Android phone</span>
     <h1>Cake Scan Showdown</h1>
-    <p>The same cake captured with RealityScan, Polycam and KIRI Engine, with a second, full-resolution or cleaned-up version from each app, plus two PC scans: one made in Agisoft Metashape from 241 phone photos, and a second capture of 245 photos from four heights, processed in both the free, open-source Meshroom and Agisoft Metashape. The last cards are extra tests. A glass jar of overnight oats (122 photos, Meshroom): the oats, lid and spoon are scanned, but glass cannot be captured by photogrammetry, so the fogged glass patches were removed and the jar wall was modelled as clear glass to the measured size. Two mini pizzas (180 and 181 photos from three heights each), with their green peppers kept despite the green backdrop; the second has a glossy ketchup drizzle. Each pizza was processed in both Meshroom and Agisoft Metashape from the same photos, shown side by side. The Metashape version of the second pizza also appears polished in Blender: floating bits removed, the surface smoothed, the colour deepened and the ketchup made glossy. The jar and the second pizza also appear as Gaussian splats trained from the same photos: instead of a surface, it is millions of soft coloured blobs whose colour changes with the viewing angle, so the real glass, the ketchup gloss and reflections are captured. On Android splats open in AR in the browser; iPhone AR cannot show splats yet, so the pizza card opens its mesh version there. Drag to orbit each model, pinch or scroll to zoom, and tap <strong>View on your table</strong> on a phone to place it in AR (iPhone and Android).</p>
+    <p>The same cake captured with RealityScan, Polycam and KIRI Engine, with a second, full-resolution or cleaned-up version from each app, plus two PC scans: one made in Agisoft Metashape from 241 phone photos, and a second capture of 245 photos from four heights, processed in both the free, open-source Meshroom and Agisoft Metashape. The last cards are extra tests. A glass jar of overnight oats (122 photos, Meshroom): the oats, lid and spoon are scanned, but glass cannot be captured by photogrammetry, so the fogged glass patches were removed and the jar wall was modelled as clear glass to the measured size. Two mini pizzas (180 and 181 photos from three heights each), with their green peppers kept despite the green backdrop; the second has a glossy ketchup drizzle. Each pizza was processed in both Meshroom and Agisoft Metashape from the same photos, shown side by side. The Metashape version of the second pizza also appears polished in Blender: floating bits removed, the surface smoothed, the colour deepened and the ketchup made glossy. The jar and the second pizza also appear as Gaussian splats trained from the same photos: instead of a surface, it is millions of soft coloured blobs whose colour changes with the viewing angle, so the real glass, the ketchup gloss and reflections are captured. Splats open in AR in the browser on both Android and iPhone (iPhone uses 8th Wall's free XR engine for camera tracking, since Safari has no WebXR). Drag to orbit each model, pinch or scroll to zoom, and tap <strong>View on your table</strong> on a phone to place it in AR (iPhone and Android).</p>
   </header>
 
   <div class="toolbar">
@@ -285,7 +284,7 @@
       <dl class="stats">
         <div><dt>Splats</dt><dd>312,413</dd></div>
         <div><dt>Size</dt><dd>7.0 MB (phone 5.2)</dd></div>
-        <div><dt>Format</dt><dd>SOG · AR on Android</dd></div>
+        <div><dt>Format</dt><dd>SOG · AR on phones</dd></div>
       </dl>
     </article>
 
@@ -376,15 +375,12 @@
 
     <article class="card">
       <div class="card-head"><h2>Gaussian splat</h2><span class="tag">Pizza 2 · OOOSplat</span></div>
-      <div class="splat-wrap">
-        <iframe class="splat-frame" src="splat.html?src=pizza2_splat.sog&amp;h=0.062&amp;w=0.3" loading="lazy" allow="xr-spatial-tracking; fullscreen"
-          title="Gaussian splat of the second mini pizza from the same 181 photos, with the real ketchup gloss captured"></iframe>
-        <a class="ar-btn ios-ar splat-ios" rel="ar" href="metashape_pizza2_polished.usdz" hidden><img src="ar-glyph.png" alt="" width="20" height="20">View on your table (mesh)</a>
-      </div>
+      <iframe class="splat-frame" src="splat.html?src=pizza2_splat.sog&amp;h=0.062&amp;w=0.3" loading="lazy" allow="xr-spatial-tracking; fullscreen"
+        title="Gaussian splat of the second mini pizza from the same 181 photos, with the real ketchup gloss captured"></iframe>
       <dl class="stats">
         <div><dt>Splats</dt><dd>98,769</dd></div>
         <div><dt>Size</dt><dd>4.2 MB (phone 2.1)</dd></div>
-        <div><dt>Format</dt><dd>SOG · iPhone AR: mesh</dd></div>
+        <div><dt>Format</dt><dd>SOG · AR on phones</dd></div>
       </dl>
     </article>
   </div>
@@ -401,9 +397,6 @@
     var probe = document.createElement("a");
     var ios = !!(probe.relList && probe.relList.supports && probe.relList.supports("ar"));
     var android = /Android/i.test(navigator.userAgent);
-    // Splat cards: Safari has no WebXR and AR Quick Look doesn't draw OpenUSD Gaussian splats
-    // (tested on an iPhone, Nov 2026), so iPhones open the matching mesh USDZ instead.
-    if (ios) document.querySelectorAll(".splat-ios").forEach(function (a) { a.hidden = false; });
     var viewers = Array.prototype.slice.call(document.querySelectorAll("model-viewer"));
     if (!ios && !android) {
       viewers.forEach(function (mv) { mv.setAttribute("src", mv.dataset.src); });

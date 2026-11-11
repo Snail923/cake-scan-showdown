@@ -20,7 +20,10 @@
   #overlay { position: absolute; inset: 0; pointer-events: none; }
   #overlay > * { pointer-events: auto; }
   #overlay .msg { pointer-events: none; }
-  #xr-btn:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+  #ar8-btn { position: absolute; left: 50%; bottom: 14px; transform: translateX(-50%); font: 600 14px/1 "IBM Plex Sans", system-ui, sans-serif;
+    border-radius: 999px; padding: 11px 16px; background: var(--accent); color: var(--accent-ink); text-decoration: none; white-space: nowrap;
+    box-shadow: 0 4px 14px rgb(0 0 0 / .18); }
+  #xr-btn:focus-visible, #ar8-btn:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
 </style>
 <script type="importmap">
   {
@@ -36,12 +39,13 @@
 <div id="overlay">
   <span class="msg" id="msg">Loading splat…</span>
   <button id="xr-btn" type="button" hidden>View in your room</button>
+  <a id="ar8-btn" class="xr-link" target="_top" hidden>View on your table</a>
 </div>
 <script type="module">
   // Gaussian splat viewer for the cards on index.html, loaded in an iframe:
   //   splat.html?src=jar_splat.sog&h=0.26        (h, w = model height and width in metres)
-  // Phones get the <name>_m.sog copy (first SH band only). AR uses WebXR, so it works in
-  // Chrome on Android; iPhone Safari has no WebXR AR, so it only gets the 3D view.
+  // Phones get the <name>_m.sog copy (first SH band only). AR uses WebXR where the browser has it
+  // (Chrome on Android); other phones (iPhone Safari) open splat-ar.html, which tracks with 8th Wall's engine.
   import * as THREE from "three";
   import { OrbitControls } from "three/addons/controls/OrbitControls.js";
   import { SparkRenderer, SplatMesh } from "@sparkjsdev/spark";
@@ -111,9 +115,11 @@
     if (xrSession) xrSession.end();
     else startAr().catch((e) => { console.error(e); msg.hidden = false; msg.textContent = "AR could not start on this device"; });
   });
-  if (navigator.xr && navigator.xr.isSessionSupported) {
-    navigator.xr.isSessionSupported("immersive-ar").then((ok) => { xrBtn.hidden = !ok; }).catch(() => {});
-  }
+  const ar8 = document.getElementById("ar8-btn");
+  ar8.href = "splat-ar.html" + location.search;
+  const webxrAr = navigator.xr && navigator.xr.isSessionSupported
+    ? navigator.xr.isSessionSupported("immersive-ar").catch(() => false) : Promise.resolve(false);
+  webxrAr.then((ok) => { xrBtn.hidden = !ok; ar8.hidden = ok || !phone; });
 
   renderer.setAnimationLoop(() => {
     if (!renderer.xr.isPresenting) controls.update();
