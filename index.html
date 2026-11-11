@@ -61,7 +61,7 @@
   @media (min-width: 720px) {
     .viewers { grid-template-columns: repeat(2, 1fr); }
     .card:last-child:nth-child(odd) { grid-column: 1 / -1; }
-    .card:last-child:nth-child(odd) model-viewer { aspect-ratio: 2 / 1; }
+    .card:last-child:nth-child(odd) model-viewer, .card:last-child:nth-child(odd) .splat-frame { aspect-ratio: 2 / 1; }
   }
   .card { background: var(--surface); border: 1px solid var(--rule); border-radius: 14px; overflow: hidden; display: flex; flex-direction: column; }
   .card-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; padding: 14px 16px 10px; }
@@ -80,6 +80,7 @@
   .ar-btn:focus-visible, .toolbar input:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
   .no-ar { position: absolute; left: 12px; bottom: 12px; right: 12px; text-align: center; font: 12px/1.35 var(--mono); color: var(--muted); }
   model-viewer[data-ar-ok] .no-ar { display: none; }
+  .splat-frame { display: block; width: 100%; aspect-ratio: 1 / 1; border: 0; background: var(--stage); }
 
     .stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1px; background: var(--rule); border-top: 1px solid var(--rule); }
   .stats div { background: var(--surface); padding: 10px 14px; }
@@ -96,7 +97,7 @@
   <header>
     <span class="eyebrow">3D scan benchmark · one cake, a glass jar and two mini pizzas · three apps + two PC tools · mid-range Android phone</span>
     <h1>Cake Scan Showdown</h1>
-    <p>The same cake captured with RealityScan, Polycam and KIRI Engine, with a second, full-resolution or cleaned-up version from each app, plus two PC scans: one made in Agisoft Metashape from 241 phone photos, and a second capture of 245 photos from four heights, processed in both the free, open-source Meshroom and Agisoft Metashape. The last cards are extra tests. A glass jar of overnight oats (122 photos, Meshroom): the oats, lid and spoon are scanned, but glass cannot be captured by photogrammetry, so the fogged glass patches were removed and the jar wall was modelled as clear glass to the measured size. Two mini pizzas (180 and 181 photos from three heights each), with their green peppers kept despite the green backdrop; the second has a glossy ketchup drizzle. Each pizza was processed in both Meshroom and Agisoft Metashape from the same photos, shown side by side. The Metashape version of the second pizza also appears polished in Blender: floating bits removed, the surface smoothed, the colour deepened and the ketchup made glossy. Drag to orbit each model, pinch or scroll to zoom, and tap <strong>View on your table</strong> on a phone to place it in AR (iPhone and Android).</p>
+    <p>The same cake captured with RealityScan, Polycam and KIRI Engine, with a second, full-resolution or cleaned-up version from each app, plus two PC scans: one made in Agisoft Metashape from 241 phone photos, and a second capture of 245 photos from four heights, processed in both the free, open-source Meshroom and Agisoft Metashape. The last cards are extra tests. A glass jar of overnight oats (122 photos, Meshroom): the oats, lid and spoon are scanned, but glass cannot be captured by photogrammetry, so the fogged glass patches were removed and the jar wall was modelled as clear glass to the measured size. Two mini pizzas (180 and 181 photos from three heights each), with their green peppers kept despite the green backdrop; the second has a glossy ketchup drizzle. Each pizza was processed in both Meshroom and Agisoft Metashape from the same photos, shown side by side. The Metashape version of the second pizza also appears polished in Blender: floating bits removed, the surface smoothed, the colour deepened and the ketchup made glossy. The jar also appears as a Gaussian splat trained from the same photos: instead of a surface, it is millions of soft coloured blobs whose colour changes with the viewing angle, so the real glass, reflections and see-through contents are captured. Splats have AR only on Android (iPhone shows the 3D view). Drag to orbit each model, pinch or scroll to zoom, and tap <strong>View on your table</strong> on a phone to place it in AR (iPhone and Android).</p>
   </header>
 
   <div class="toolbar">
@@ -273,6 +274,17 @@
         <div><dt>Triangles</dt><dd>245,148 + glass</dd></div>
         <div><dt>Texture</dt><dd>8K</dd></div>
         <div><dt>Format</dt><dd>OBJ→GLB</dd></div>
+      </dl>
+    </article>
+
+    <article class="card">
+      <div class="card-head"><h2>Gaussian splat</h2><span class="tag">Glass jar · OOOSplat (Brush)</span></div>
+      <iframe class="splat-frame" src="splat.html?src=jar_splat.sog&amp;h=0.26" loading="lazy" allow="xr-spatial-tracking; fullscreen"
+        title="Gaussian splat of the overnight oats jar from the same photos, with the real glass captured instead of modelled"></iframe>
+      <dl class="stats">
+        <div><dt>Splats</dt><dd>312,413</dd></div>
+        <div><dt>Size</dt><dd>7.0 MB (phone 5.2)</dd></div>
+        <div><dt>Format</dt><dd>SOG · AR on Android</dd></div>
       </dl>
     </article>
 
@@ -463,6 +475,7 @@
       mv.autoRotate = spin.checked;
       if (spin.checked) mv.resetTurntableRotation(0);
     });
+    document.querySelectorAll(".splat-frame").forEach((f) => f.contentWindow && f.contentWindow.postMessage({ spin: spin.checked }, location.origin));
   });
 </script>
 </body>

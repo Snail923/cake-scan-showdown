@@ -1,0 +1,123 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Gaussian Splat Viewer</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@600&family=IBM+Plex+Mono:wght@400&display=swap">
+<style>
+  :root { --stage: #ebe7ef; --muted: #6b6575; --accent: #a8285f; --accent-ink: #ffffff; }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) { --stage: #24212a; --muted: #a39cad; --accent: #e46a9e; --accent-ink: #1a0d14; }
+  }
+  :root[data-theme="dark"] { --stage: #24212a; --muted: #a39cad; --accent: #e46a9e; --accent-ink: #1a0d14; }
+  html, body { margin: 0; height: 100%; overflow: hidden; background: var(--stage); }
+  canvas { display: block; width: 100%; height: 100%; touch-action: none; }
+  .msg { position: absolute; left: 12px; right: 12px; bottom: 12px; text-align: center; font: 12px/1.35 "IBM Plex Mono", ui-monospace, monospace; color: var(--muted); pointer-events: none; }
+  #xr-btn { position: absolute; left: 50%; bottom: 14px; transform: translateX(-50%); font: 600 14px/1 "IBM Plex Sans", system-ui, sans-serif;
+    border: 0; border-radius: 999px; padding: 11px 16px; background: var(--accent); color: var(--accent-ink); cursor: pointer; white-space: nowrap;
+    box-shadow: 0 4px 14px rgb(0 0 0 / .18); }
+  #overlay { position: absolute; inset: 0; pointer-events: none; }
+  #overlay > * { pointer-events: auto; }
+  #overlay .msg { pointer-events: none; }
+  #xr-btn:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+</style>
+<script type="importmap">
+  {
+    "imports": {
+      "three": "https://cdn.jsdelivr.net/npm/three@0.180.0/build/three.module.js",
+      "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.180.0/examples/jsm/",
+      "@sparkjsdev/spark": "https://cdn.jsdelivr.net/npm/@sparkjsdev/spark@2.4.0/dist/spark.module.js"
+    }
+  }
+</script>
+</head>
+<body>
+<div id="overlay">
+  <span class="msg" id="msg">Loading splat…</span>
+  <button id="xr-btn" type="button" hidden>View in your room</button>
+</div>
+<script type="module">
+  // Gaussian splat viewer for the cards on index.html, loaded in an iframe:
+  //   splat.html?src=jar_splat.sog&h=0.26
+  // Phones get the <name>_m.sog copy (first SH band only). AR uses WebXR, so it works in
+  // Chrome on Android; iPhone Safari has no WebXR AR, so it only gets the 3D view.
+  import * as THREE from "three";
+  import { OrbitControls } from "three/addons/controls/OrbitControls.js";
+  import { SparkRenderer, SplatMesh } from "@sparkjsdev/spark";
+
+  const q = new URLSearchParams(location.search);
+  const phone = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent) || (navigator.maxTouchPoints > 1 && /Mac/.test(navigator.platform));
+  let src = q.get("src") || "jar_splat.sog";
+  if (phone) src = src.replace(/\.sog$/, "_m.sog");
+  const height = parseFloat(q.get("h") || "0.26");  // model height in metres; it stands on y = 0
+  const msg = document.getElementById("msg");
+  const xrBtn = document.getElementById("xr-btn");
+
+  const renderer = new THREE.WebGLRenderer({ antialias: false, alpha: true });
+  renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+  renderer.xr.enabled = true;
+  document.body.appendChild(renderer.domElement);
+
+  const scene = new THREE.Scene();
+  const camera = new THREE.PerspectiveCamera(40, 1, 0.01, 50);
+  scene.add(new SparkRenderer({ renderer }));
+
+  const target = new THREE.Vector3(0, height * 0.5, 0);
+  const dist = height * 2.2;
+  camera.position.set(dist * 0.55, height * 0.5 + dist * 0.45, dist * 0.75);
+  const controls = new OrbitControls(camera, renderer.domElement);
+  controls.target.copy(target);
+  controls.enableDamping = true;
+  controls.minDistance = height * 0.6;
+  controls.maxDistance = height * 8;
+  controls.update();
+
+  const splat = new SplatMesh({ url: src, fileType: "pcsogszip" });
+  scene.add(splat);
+  splat.initialized.then(() => { msg.hidden = true; })
+    .catch((e) => { msg.textContent = "Could not load the splat"; console.error(e); });
+
+  function resize() {
+    const w = innerWidth, h = innerHeight;
+    renderer.setSize(w, h, false);
+    camera.aspect = w / h;
+    camera.updateProjectionMatrix();
+  }
+  addEventListener("resize", resize);
+  resize();
+
+  // Let the parent page's "Auto-rotate" checkbox drive this viewer too.
+  addEventListener("message", (e) => {
+    if (e.origin === location.origin && e.data && "spin" in e.data) controls.autoRotate = !!e.data.spin;
+  });
+
+  // AR: the model is placed on the floor about 80 cm in front of where the phone was when AR started.
+  let xrSession = null;
+  async function startAr() {
+    xrSession = await navigator.xr.requestSession("immersive-ar", { optionalFeatures: ["local-floor", "dom-overlay"], domOverlay: { root: document.getElementById("overlay") } });
+    renderer.xr.setReferenceSpaceType("local-floor");
+    await renderer.xr.setSession(xrSession);
+    splat.position.set(0, 0, -0.8);
+    xrBtn.textContent = "Exit AR";
+    xrSession.addEventListener("end", () => {
+      xrSession = null;
+      splat.position.set(0, 0, 0);
+      xrBtn.textContent = "View in your room";
+    });
+  }
+  xrBtn.addEventListener("click", () => {
+    if (xrSession) xrSession.end();
+    else startAr().catch((e) => { console.error(e); msg.hidden = false; msg.textContent = "AR could not start on this device"; });
+  });
+  if (navigator.xr && navigator.xr.isSessionSupported) {
+    navigator.xr.isSessionSupported("immersive-ar").then((ok) => { xrBtn.hidden = !ok; }).catch(() => {});
+  }
+
+  renderer.setAnimationLoop(() => {
+    if (!renderer.xr.isPresenting) controls.update();
+    renderer.render(scene, camera);
+  });
+</script>
+</body>
+</html>
