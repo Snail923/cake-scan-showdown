@@ -39,7 +39,7 @@
 </div>
 <script type="module">
   // Gaussian splat viewer for the cards on index.html, loaded in an iframe:
-  //   splat.html?src=jar_splat.sog&h=0.26
+  //   splat.html?src=jar_splat.sog&h=0.26        (h, w = model height and width in metres)
   // Phones get the <name>_m.sog copy (first SH band only). AR uses WebXR, so it works in
   // Chrome on Android; iPhone Safari has no WebXR AR, so it only gets the 3D view.
   import * as THREE from "three";
@@ -51,6 +51,7 @@
   let src = q.get("src") || "jar_splat.sog";
   if (phone) src = src.replace(/\.sog$/, "_m.sog");
   const height = parseFloat(q.get("h") || "0.26");  // model height in metres; it stands on y = 0
+  const size = Math.max(height, parseFloat(q.get("w") || "0"));  // frame flat models by their width
   const msg = document.getElementById("msg");
   const xrBtn = document.getElementById("xr-btn");
 
@@ -64,13 +65,13 @@
   scene.add(new SparkRenderer({ renderer }));
 
   const target = new THREE.Vector3(0, height * 0.5, 0);
-  const dist = height * 2.2;
+  const dist = size * 2.2;
   camera.position.set(dist * 0.55, height * 0.5 + dist * 0.45, dist * 0.75);
   const controls = new OrbitControls(camera, renderer.domElement);
   controls.target.copy(target);
   controls.enableDamping = true;
-  controls.minDistance = height * 0.6;
-  controls.maxDistance = height * 8;
+  controls.minDistance = size * 0.6;
+  controls.maxDistance = size * 8;
   controls.update();
 
   const splat = new SplatMesh({ url: src, fileType: "pcsogszip" });
