@@ -96,7 +96,7 @@
   <header>
     <span class="eyebrow">3D scan benchmark · one cake, a glass jar and two mini pizzas · three apps + two PC tools · mid-range Android phone</span>
     <h1>Cake Scan Showdown</h1>
-    <p>The same cake captured with RealityScan, Polycam and KIRI Engine, with a second, full-resolution or cleaned-up version from each app, plus two PC scans: one made in Agisoft Metashape from 241 phone photos, and a second capture of 245 photos from four heights, processed in both the free, open-source Meshroom and Agisoft Metashape. The last cards are extra tests. A glass jar of overnight oats (122 photos, Meshroom): the oats, lid and spoon are scanned, but glass cannot be captured by photogrammetry, so the fogged glass patches were removed and the jar wall was modelled as clear glass to the measured size. Two mini pizzas (180 and 181 photos from three heights each), with their green peppers kept despite the green backdrop; the second has a glossy ketchup drizzle. Each pizza was processed in both Meshroom and Agisoft Metashape from the same photos, shown side by side. Drag to orbit each model, pinch or scroll to zoom, and tap <strong>View on your table</strong> on a phone to place it in AR (iPhone and Android).</p>
+    <p>The same cake captured with RealityScan, Polycam and KIRI Engine, with a second, full-resolution or cleaned-up version from each app, plus two PC scans: one made in Agisoft Metashape from 241 phone photos, and a second capture of 245 photos from four heights, processed in both the free, open-source Meshroom and Agisoft Metashape. The last cards are extra tests. A glass jar of overnight oats (122 photos, Meshroom): the oats, lid and spoon are scanned, but glass cannot be captured by photogrammetry, so the fogged glass patches were removed and the jar wall was modelled as clear glass to the measured size. Two mini pizzas (180 and 181 photos from three heights each), with their green peppers kept despite the green backdrop; the second has a glossy ketchup drizzle. Each pizza was processed in both Meshroom and Agisoft Metashape from the same photos, shown side by side. The Metashape version of the second pizza also appears polished in Blender: floating bits removed, the surface smoothed, the colour deepened and the ketchup made glossy. Drag to orbit each model, pinch or scroll to zoom, and tap <strong>View on your table</strong> on a phone to place it in AR (iPhone and Android).</p>
   </header>
 
   <div class="toolbar">
@@ -341,6 +341,23 @@
         <div><dt>Triangles</dt><dd>299,915</dd></div>
         <div><dt>Texture</dt><dd>8K</dd></div>
         <div><dt>Format</dt><dd>GLB</dd></div>
+      </dl>
+    </article>
+
+    <article class="card">
+      <div class="card-head"><h2>Metashape + Blender</h2><span class="tag">Mini pizza 2 · polished</span></div>
+      <model-viewer id="mv-ms-pizza2-p" data-src="metashape_pizza2_polished.glb" ios-src="metashape_pizza2_polished.usdz" alt="The Agisoft Metashape mini pizza polished in Blender: floating bits removed, surface smoothed, richer colour and a glossy ketchup drizzle"
+        camera-controls touch-action="pan-y" shadow-intensity="1" exposure="1.05"
+        ar ar-modes="webxr scene-viewer quick-look" ar-placement="floor" ar-scale="auto"
+        camera-orbit="30deg 55deg auto" interaction-prompt="none">
+        <button slot="ar-button" class="ar-btn">View on your table</button>
+        <a class="ar-btn ios-ar" rel="ar" href="metashape_pizza2_polished.usdz" hidden><img src="ar-glyph.png" alt="" width="20" height="20">View on your table</a>
+        <span class="no-ar">AR opens on a phone</span>
+      </model-viewer>
+      <dl class="stats">
+        <div><dt>Triangles</dt><dd>299,700</dd></div>
+        <div><dt>Texture</dt><dd>8K color + gloss map</dd></div>
+        <div><dt>Format</dt><dd>Blender→GLB</dd></div>
       </dl>
     </article>
   </div>
