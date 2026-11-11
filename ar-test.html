@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>iPhone Splat AR Test</title>
+<style>
+  :root { --ground: #f5f3f7; --surface: #ffffff; --ink: #1e1b24; --muted: #6b6575; --rule: #e0dbe6; --accent: #a8285f; --accent-ink: #ffffff; }
+  @media (prefers-color-scheme: dark) {
+    :root { --ground: #141218; --surface: #1c1a21; --ink: #eeeaf2; --muted: #a39cad; --rule: #322e39; --accent: #e46a9e; --accent-ink: #1a0d14; }
+  }
+  body { margin: 0; background: var(--ground); color: var(--ink); font: 16px/1.5 system-ui, sans-serif; }
+  main { max-width: 560px; margin: 0 auto; padding: 24px 16px 48px; }
+  h1 { font-size: 24px; margin: 0 0 8px; }
+  p { color: var(--muted); margin: 0 0 16px; }
+  .test { background: var(--surface); border: 1px solid var(--rule); border-radius: 14px; padding: 16px; margin: 0 0 14px; }
+  .test h2 { font-size: 17px; margin: 0 0 4px; }
+  a.btn { display: inline-flex; gap: 8px; align-items: center; margin-top: 10px; padding: 11px 16px; border-radius: 999px;
+    background: var(--accent); color: var(--accent-ink); text-decoration: none; font-weight: 600; }
+  a.btn img { display: block; }
+</style>
+</head>
+<body>
+<main>
+  <h1>iPhone splat AR test</h1>
+  <p>Open this page in Safari on an iPhone and tap a button. If AR Quick Look on your iOS version supports Gaussian splats, the pizza appears on your table, 30&nbsp;cm across, with glossy ketchup. If it doesn't, you'll see an empty scene, an error or a blank object.</p>
+
+  <div class="test">
+    <h2>A · Full quality</h2>
+    <p>Gaussian splat USDZ (OpenUSD ParticleField), full angle-dependent colour, 23&nbsp;MB.</p>
+    <a class="btn" rel="ar" href="pizza2_splat.usdz"><img src="ar-glyph.png" alt="" width="20" height="20">Open in AR</a>
+  </div>
+
+  <div class="test">
+    <h2>B · Lighter</h2>
+    <p>Same splat with simpler angle-dependent colour, 9&nbsp;MB. Try this if A fails.</p>
+    <a class="btn" rel="ar" href="pizza2_splat_sh1.usdz"><img src="ar-glyph.png" alt="" width="20" height="20">Open in AR</a>
+  </div>
+
+  <div class="test">
+    <h2>C · Control (mesh)</h2>
+    <p>The Blender-polished mesh of the same pizza. This one should always work; it shows Quick Look itself is fine.</p>
+    <a class="btn" rel="ar" href="metashape_pizza2_polished.usdz"><img src="ar-glyph.png" alt="" width="20" height="20">Open in AR</a>
+  </div>
+</main>
+</body>
+</html>
