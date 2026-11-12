@@ -67,6 +67,14 @@
   // from jsDelivr's mirror of the repo, pinned to a commit that has them. Bump the hash when a .sog changes.
   const ASSETS = location.hostname.endsWith("github.io")
     ? "https://cdn.jsdelivr.net/gh/Snail923/cake-scan-showdown@e8fc4a22cebe40586cb22fe97a3a31012053f8ea/" : "";
+  // jsDelivr refuses files once a repo version passes its 50 MB limit (403), so check first and fall back to
+  // the copy on this site.
+  async function splatUrl(file) {
+    if (!ASSETS) return file;
+    try { const r = await fetch(ASSETS + file, { method: "HEAD" }); if (r.ok) return ASSETS + file; } catch (e) {}
+    return file;
+  }
+  const SRC_URL = await splatUrl(src);
   const $ = (id) => document.getElementById(id);
   const startBtn = $("start"), hint = $("hint");
 
@@ -98,7 +106,7 @@
       onStart: () => {
         const { scene, camera, renderer } = XR8.Threejs.xrScene();
         scene.add(new SparkRenderer({ renderer }));
-        splat = new SplatMesh({ url: ASSETS + src, fileType: "pcsogszip" });
+        splat = new SplatMesh({ url: SRC_URL, fileType: "pcsogszip" });
         splat.visible = false;
         scene.add(splat);
         splat.initialized.catch((e) => fail("Could not load the splat.", e));
