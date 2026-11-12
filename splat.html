@@ -23,6 +23,12 @@
   #ar8-btn { position: absolute; left: 50%; bottom: 14px; transform: translateX(-50%); font: 600 14px/1 "IBM Plex Sans", system-ui, sans-serif;
     border-radius: 999px; padding: 11px 16px; background: var(--accent); color: var(--accent-ink); text-decoration: none; white-space: nowrap;
     box-shadow: 0 4px 14px rgb(0 0 0 / .18); }
+  #overlay.ar-on { pointer-events: auto; }
+  .ar-pill { position: absolute; font: 14px/1.3 "IBM Plex Sans", system-ui, sans-serif; color: #fff; background: rgb(20 18 24 / .72);
+    border: 0; border-radius: 12px; padding: 9px 13px; }
+  #ar-hint { left: 50%; bottom: 68px; transform: translateX(-50%); text-align: center; max-width: calc(100% - 32px); pointer-events: none; }
+  #ar-size { top: 12px; right: 12px; border-radius: 999px; font-weight: 600; font-variant-numeric: tabular-nums; cursor: pointer; }
+  [hidden] { display: none !important; }
   #xr-btn:focus-visible, #ar8-btn:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
 </style>
 <script type="importmap">
@@ -39,6 +45,8 @@
 <div id="overlay">
   <span class="msg" id="msg">Loading splat…</span>
   <button id="xr-btn" type="button" hidden>View in your room</button>
+  <span id="ar-hint" class="ar-pill" hidden></span>
+  <button id="ar-size" class="ar-pill" type="button" hidden title="Back to real size">100%</button>
   <a id="ar8-btn" class="xr-link" target="_top" hidden>View on your table</a>
 </div>
 <script type="module">
@@ -101,19 +109,92 @@
     if (e.origin === location.origin && e.data && "spin" in e.data) controls.autoRotate = !!e.data.spin;
   });
 
-  // AR: the model is placed on the floor about 80 cm in front of where the phone was when AR started.
-  let xrSession = null;
+  // AR (WebXR, Chrome on Android; ARCore gives the full-quality camera). Before placing, the model
+  // sits on whatever surface is under the middle of the screen; a tap fixes it there. Then, like
+  // AR Quick Look and splat-ar.html: one finger drags it over the table, two fingers pinch to
+  // resize (25-300%) and twist to rotate, and the size chip goes back to the real size.
+  const overlay = document.getElementById("overlay"), hint = document.getElementById("ar-hint"), chip = document.getElementById("ar-size");
+  let xrSession = null, hitSource = null, placed = false, scale = 1, grab = null, pinch = null, moved = false;
+  const raycaster = new THREE.Raycaster();
+  function setScale(v) {
+    scale = Math.min(3, Math.max(0.25, v));
+    splat.scale.setScalar(scale);
+    chip.textContent = Math.round(scale * 100) + "%";
+  }
+  // The finger's point on the table: its ray from the AR camera meets the level plane the model stands on.
+  function tablePoint(x, y) {
+    const cam = renderer.xr.getCamera().cameras[0] || renderer.xr.getCamera();
+    raycaster.setFromCamera(new THREE.Vector2(x / innerWidth * 2 - 1, 1 - y / innerHeight * 2), cam);
+    const p = raycaster.ray.intersectPlane(new THREE.Plane(new THREE.Vector3(0, 1, 0), -splat.position.y), new THREE.Vector3());
+    return p && p.distanceTo(cam.getWorldPosition(new THREE.Vector3())) < 5 ? p : null;
+  }
+  const twoFinger = (t) => ({
+    dist: Math.hypot(t[1].clientX - t[0].clientX, t[1].clientY - t[0].clientY),
+    angle: Math.atan2(t[1].clientY - t[0].clientY, t[1].clientX - t[0].clientX),
+  });
+  overlay.addEventListener("touchstart", (e) => {
+    if (!xrSession || e.target === xrBtn || e.target === chip) return;
+    moved = false;
+    if (e.touches.length === 1 && placed) { const p = tablePoint(e.touches[0].clientX, e.touches[0].clientY); grab = p && splat.position.clone().sub(p); }
+    if (e.touches.length === 2 && placed) { grab = null; pinch = { ...twoFinger(e.touches), scale, yaw: splat.rotation.y }; }
+  }, { passive: true });
+  overlay.addEventListener("touchmove", (e) => {
+    if (!xrSession || !placed) return;
+    moved = true;
+    if (e.touches.length === 1 && grab && !pinch) {
+      const p = tablePoint(e.touches[0].clientX, e.touches[0].clientY);
+      if (p) splat.position.set(p.x + grab.x, splat.position.y, p.z + grab.z);
+    } else if (e.touches.length === 2 && pinch) {
+      const g = twoFinger(e.touches);
+      setScale(pinch.scale * g.dist / pinch.dist);
+      splat.rotation.y = pinch.yaw - (g.angle - pinch.angle);
+    }
+  }, { passive: true });
+  overlay.addEventListener("touchend", (e) => {
+    if (!xrSession) return;
+    if (e.touches.length < 2) pinch = null;
+    if (!e.touches.length) grab = null;
+    if (!placed && !moved && splat.visible && e.target !== xrBtn) {
+      placed = true; chip.hidden = false;
+      hint.textContent = "Drag to move · pinch to resize · twist to rotate";
+    }
+  }, { passive: true });
+  chip.addEventListener("click", () => setScale(1));
+
   async function startAr() {
-    xrSession = await navigator.xr.requestSession("immersive-ar", { optionalFeatures: ["local-floor", "dom-overlay"], domOverlay: { root: document.getElementById("overlay") } });
+    xrSession = await navigator.xr.requestSession("immersive-ar", { optionalFeatures: ["hit-test", "local-floor", "dom-overlay"], domOverlay: { root: overlay } });
     renderer.xr.setReferenceSpaceType("local-floor");
     await renderer.xr.setSession(xrSession);
-    splat.position.set(0, 0, -0.8);
+    overlay.classList.add("ar-on");
+    placed = false; chip.hidden = true; setScale(1); splat.rotation.set(0, 0, 0);
+    hint.hidden = false; hint.textContent = "Point the phone at a table…";
+    try {
+      const viewer = await xrSession.requestReferenceSpace("viewer");
+      hitSource = await xrSession.requestHitTestSource({ space: viewer });
+    } catch (e) {  // no hit-test: stand it on the floor 80 cm ahead, as before
+      hitSource = null; splat.position.set(0, 0, -0.8); splat.visible = true;
+      hint.textContent = "Tap to place it here";
+    }
+    if (hitSource) splat.visible = false;
     xrBtn.textContent = "Exit AR";
     xrSession.addEventListener("end", () => {
-      xrSession = null;
-      splat.position.set(0, 0, 0);
+      xrSession = null; hitSource = null; pinch = grab = null;
+      overlay.classList.remove("ar-on"); hint.hidden = true; chip.hidden = true;
+      splat.position.set(0, 0, 0); splat.rotation.set(0, 0, 0); splat.scale.setScalar(1); splat.visible = true;
       xrBtn.textContent = "View in your room";
     });
+  }
+  // Before placing: follow the surface under the middle of the screen, front turned towards the phone.
+  function followSurface(frame) {
+    if (!hitSource || placed) return;
+    const hit = frame.getHitTestResults(hitSource)[0];
+    if (!hit) return;
+    const pose = hit.getPose(renderer.xr.getReferenceSpace());
+    if (!pose) return;
+    const p = pose.transform.position, cam = renderer.xr.getCamera().getWorldPosition(new THREE.Vector3());
+    splat.position.set(p.x, p.y, p.z);
+    splat.rotation.set(0, Math.atan2(cam.x - p.x, cam.z - p.z), 0);
+    if (!splat.visible) { splat.visible = true; hint.textContent = "Tap to place it here"; }
   }
   xrBtn.addEventListener("click", () => {
     if (xrSession) xrSession.end();
@@ -125,8 +206,9 @@
     ? navigator.xr.isSessionSupported("immersive-ar").catch(() => false) : Promise.resolve(false);
   webxrAr.then((ok) => { xrBtn.hidden = !ok; ar8.hidden = ok || !phone; });
 
-  renderer.setAnimationLoop(() => {
+  renderer.setAnimationLoop((t, frame) => {
     if (!renderer.xr.isPresenting) controls.update();
+    else if (frame) followSurface(frame);
     renderer.render(scene, camera);
   });
 </script>
