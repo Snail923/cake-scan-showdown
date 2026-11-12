@@ -96,6 +96,9 @@
   controls.minDistance = size * 0.6;
   controls.maxDistance = size * 8;
   controls.maxPolarAngle = Math.PI * 0.56;  // stop just below table level: splat undersides were never photographed
+  // Optional ?maxel=<deg>: highest camera elevation the photos covered (e.g. captures without a top ring), so
+  // viewers can't orbit into views the splat never learned.
+  if (q.get("maxel")) controls.minPolarAngle = Math.PI / 2 - parseFloat(q.get("maxel")) * Math.PI / 180;
   controls.update();
 
   const splat = new SplatMesh({ url: await splatUrl(src), fileType: "pcsogszip" });
