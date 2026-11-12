@@ -16,6 +16,7 @@
     background: var(--accent); color: var(--accent-ink); box-shadow: 0 4px 14px rgb(0 0 0 / .25); }
   .btn:focus-visible { outline: 3px solid var(--ink); outline-offset: 2px; }
   #exit { position: fixed; top: calc(12px + env(safe-area-inset-top)); left: 12px; background: var(--scrim); color: var(--ink); padding: 10px 14px; }
+  #size { position: fixed; top: calc(12px + env(safe-area-inset-top)); right: 12px; background: var(--scrim); color: var(--ink); padding: 10px 14px; font-variant-numeric: tabular-nums; }
   #start-screen { position: fixed; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 16px; padding: 24px; text-align: center; }
   #start-screen h1 { font-size: 22px; margin: 0; }
   #start-screen p { margin: 0; color: var(--muted); max-width: 360px; }
@@ -44,13 +45,15 @@
 
 <button class="btn" id="exit" type="button" hidden>✕ Close</button>
 <div class="panel" id="panel" hidden><span class="hint" id="hint">Move the phone slowly to find the table…</span></div>
+<button class="btn" id="size" type="button" hidden title="Back to real size">100%</button>
 <p class="legal" id="legal" hidden>AR: XR Engine © 2026 Niantic Spatial, Inc. <a href="https://github.com/8thwall/engine/blob/main/LICENSE" target="_blank" rel="noopener">License</a></p>
 
 <script type="module">
   // Full-screen Gaussian splat AR for phones without WebXR (iPhone Safari), opened from splat.html:
   //   splat-ar.html?src=pizza2_splat.sog&h=0.062&w=0.3
   // Camera tracking comes from 8th Wall's XR engine binary (runs inside Safari, absolute scale in
-  // metres); the splat is drawn by Spark into the same three.js scene. Tap a surface to place it.
+  // metres); the splat is drawn by Spark into the same three.js scene. Tap a surface to place it,
+  // then drag / pinch / twist it. ?cam=hd tries a sharper camera stream (see below).
   // This product includes the XR Engine software developed by Niantic Spatial, Inc.
   // Copyright © 2026 Niantic Spatial, Inc. All rights reserved.
   // License: https://github.com/8thwall/engine/blob/main/LICENSE
@@ -112,22 +115,83 @@
     };
   }
 
-  function place(XR8, clientX, clientY) {
-    const x = clientX / innerWidth, y = clientY / innerHeight;
-    if (!splat) return;
-    const hits = XR8.XrController.hitTest(x, y, ["DETECTED_SURFACE", "FEATURE_POINT", "ESTIMATED_SURFACE"]);
+  // Where a screen point meets the table: the best tracked hit; otherwise where the finger's ray
+  // crosses a level plane (the model's current height, or 40 cm below the phone before placing).
+  const raycaster = new THREE.Raycaster();
+  function surfaceAt(XR8, clientX, clientY) {
+    const hits = XR8.XrController.hitTest(clientX / innerWidth, clientY / innerHeight, ["DETECTED_SURFACE", "FEATURE_POINT", "ESTIMATED_SURFACE"]);
     const rank = { DETECTED_SURFACE: 0, FEATURE_POINT: 1, ESTIMATED_SURFACE: 2 };
+    const hit = hits.slice().sort((a, b) => (rank[a.type] ?? 3) - (rank[b.type] ?? 3))[0];
+    if (hit) return new THREE.Vector3(hit.position.x, hit.position.y, hit.position.z);
     const { camera } = XR8.Threejs.xrScene();
-    let hit = hits.slice().sort((a, b) => (rank[a.type] ?? 3) - (rank[b.type] ?? 3))[0];
-    if (!hit) {  // nothing tracked under the finger yet: 60 cm ahead, 40 cm below the phone
-      const ahead = new THREE.Vector3(0, 0, -1).applyQuaternion(camera.quaternion).setY(0).normalize().multiplyScalar(0.6);
-      hit = { position: camera.position.clone().add(ahead).setY(camera.position.y - 0.4) };
+    const level = placed ? splat.position.y : camera.position.y - 0.4;
+    raycaster.setFromCamera(new THREE.Vector2(clientX / innerWidth * 2 - 1, 1 - clientY / innerHeight * 2), camera);
+    const p = raycaster.ray.intersectPlane(new THREE.Plane(new THREE.Vector3(0, 1, 0), -level), new THREE.Vector3());
+    if (p && p.distanceTo(camera.position) < 3) return p;
+    const ahead = new THREE.Vector3(0, 0, -1).applyQuaternion(camera.quaternion).setY(0).normalize().multiplyScalar(0.6);
+    return camera.position.clone().add(ahead).setY(level);
+  }
+
+  let grab = null;  // offset from the finger's table point to the model, so drags don't jump
+  function moveTo(XR8, clientX, clientY, start) {
+    if (!splat) return;
+    const p = surfaceAt(XR8, clientX, clientY);
+    if (placed && start) grab = splat.position.clone().sub(p).setY(0);
+    if (placed && grab) { splat.position.set(p.x + grab.x, p.y, p.z + grab.z); return; }
+    splat.position.copy(p);
+    if (!placed) {  // first placement: turn the front towards the viewer
+      const { camera } = XR8.Threejs.xrScene();
+      splat.rotation.set(0, Math.atan2(camera.position.x - p.x, camera.position.z - p.z), 0);
+      splat.visible = true;
+      placed = true;
+      hint.textContent = "Drag to move · pinch to resize · twist to rotate";
     }
-    splat.position.set(hit.position.x, hit.position.y, hit.position.z);
-    splat.rotation.set(0, Math.atan2(camera.position.x - hit.position.x, camera.position.z - hit.position.z), 0);
-    splat.visible = true;
-    placed = true;
-    hint.textContent = "Tap elsewhere to move it";
+  }
+
+  // Gestures like AR Quick Look: one finger drags it over the table, two fingers pinch to resize
+  // (25%-300%) and twist to rotate. Tapping the size chip goes back to the real size.
+  let scale = 1, pinch = null;
+  function setScale(v) {
+    scale = Math.min(3, Math.max(0.25, v));
+    if (splat) splat.scale.setScalar(scale);
+    $("size").textContent = Math.round(scale * 100) + "%";
+    $("size").hidden = !placed;
+  }
+  const twoFinger = (t) => ({
+    dist: Math.hypot(t[1].clientX - t[0].clientX, t[1].clientY - t[0].clientY),
+    angle: Math.atan2(t[1].clientY - t[0].clientY, t[1].clientX - t[0].clientX),
+  });
+  function attachGestures(XR8, canvas) {
+    canvas.addEventListener("touchstart", (e) => {
+      if (e.touches.length === 1) moveTo(XR8, e.touches[0].clientX, e.touches[0].clientY, true);
+      else if (e.touches.length === 2 && placed) pinch = { ...twoFinger(e.touches), scale, yaw: splat.rotation.y };
+      setScale(scale);
+    }, { passive: true });
+    canvas.addEventListener("touchmove", (e) => {
+      if (e.touches.length === 1 && !pinch && grab) moveTo(XR8, e.touches[0].clientX, e.touches[0].clientY);
+      else if (e.touches.length === 2 && pinch) {
+        const g = twoFinger(e.touches);
+        setScale(pinch.scale * g.dist / pinch.dist);
+        splat.rotation.y = pinch.yaw - (g.angle - pinch.angle);
+      }
+    }, { passive: true });
+    canvas.addEventListener("touchend", (e) => { if (e.touches.length < 2) pinch = null; if (!e.touches.length) grab = null; }, { passive: true });
+  }
+
+  // Test switch ?cam=hd: on iPhones the engine asks Safari for "at least 960x720" and gets a 1280x720
+  // (16:9) stream. That cuts the 4:3 sensor, so the view looks zoomed in and soft next to AR Quick
+  // Look (full 4:3 sensor, 1920x1440). This asks for the full 4:3 sensor at 1920x1440 instead,
+  // keeping the engine's minimums. Tracking may run slower, so it stays opt-in until tried on a phone.
+  if (q.get("cam") === "hd" && navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+    const gum = navigator.mediaDevices.getUserMedia.bind(navigator.mediaDevices);
+    const atLeast = (v, n) => Math.max(n, (v && (v.min || v.exact || v.ideal)) || (typeof v === "number" ? v : 0));
+    navigator.mediaDevices.getUserMedia = (c) => {
+      const v = c && c.video;
+      if (v && typeof v === "object" && (v.width || v.height)) {
+        c = { ...c, video: { ...v, width: { min: atLeast(v.width, 0), ideal: 1920 }, height: { min: atLeast(v.height, 0), ideal: 1440 }, aspectRatio: { ideal: 4 / 3 } } };
+      }
+      return gum(c);
+    };
   }
 
   startBtn.addEventListener("click", async () => {
@@ -148,10 +212,12 @@
           if (status === "failed") fail("Camera access was denied. Allow it in Settings → Safari → Camera, then reload.");
         }, onException: (e) => fail("AR stopped because of an error.", e) },
     ]);
-    canvas.addEventListener("touchstart", (e) => { if (e.touches.length === 1) place(XR8, e.touches[0].clientX, e.touches[0].clientY); }, { passive: true });
+    attachGestures(XR8, canvas);
     try { XR8.run({ canvas, webgl2: true, allowedDevices: q.has("anydevice") ? XR8.XrConfig.device().ANY : XR8.XrConfig.device().MOBILE }); }
     catch (e) { fail("AR could not start on this device.", e); }
   });
+
+  $("size").addEventListener("click", () => setScale(1));
 
   $("exit").addEventListener("click", () => {
     try { window.XR8 && window.XR8.stop(); } catch (e) {}
