@@ -88,6 +88,7 @@
   controls.enableDamping = true;
   controls.minDistance = size * 0.6;
   controls.maxDistance = size * 8;
+  controls.maxPolarAngle = Math.PI * 0.56;  // stop just below table level: splat undersides were never photographed
   controls.update();
 
   const splat = new SplatMesh({ url: ASSETS + src, fileType: "pcsogszip" });
