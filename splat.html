@@ -23,11 +23,18 @@
   #ar8-btn { position: absolute; left: 50%; bottom: 14px; transform: translateX(-50%); font: 600 14px/1 "IBM Plex Sans", system-ui, sans-serif;
     border-radius: 999px; padding: 11px 16px; background: var(--accent); color: var(--accent-ink); text-decoration: none; white-space: nowrap;
     box-shadow: 0 4px 14px rgb(0 0 0 / .18); }
-  #overlay.ar-on { pointer-events: auto; }
+  /* During AR the overlay takes every touch for the model: no browser pinch-zoom or scrolling, which would
+     also shift the buttons out from under the fingers. */
+  #overlay.ar-on { pointer-events: auto; touch-action: none; }
   .ar-pill { position: absolute; font: 14px/1.3 "IBM Plex Sans", system-ui, sans-serif; color: #fff; background: rgb(20 18 24 / .72);
     border: 0; border-radius: 12px; padding: 9px 13px; }
-  #ar-hint { left: 50%; bottom: 68px; transform: translateX(-50%); text-align: center; max-width: calc(100% - 32px); pointer-events: none; }
-  #ar-size { top: 12px; right: 12px; border-radius: 999px; font-weight: 600; font-variant-numeric: tabular-nums; cursor: pointer; }
+  #ar-hint { left: 50%; bottom: 116px; transform: translateX(-50%); text-align: center; max-width: calc(100% - 32px); pointer-events: none; white-space: pre-line; width: max-content; }
+  #ar-tools { position: absolute; left: 50%; bottom: 64px; transform: translateX(-50%); display: flex; gap: 8px; white-space: nowrap; }
+  .seg { display: inline-flex; padding: 3px; border-radius: 999px; background: rgb(20 18 24 / .72); }
+  .seg button, .ar-btn { font: 600 14px/1 "IBM Plex Sans", system-ui, sans-serif; border: 0; border-radius: 999px; padding: 9px 14px; background: transparent; color: #fff; cursor: pointer; }
+  .ar-btn { background: rgb(20 18 24 / .72); }
+  .seg button[aria-pressed="true"] { background: var(--accent); color: var(--accent-ink); }
+  .seg button:focus-visible, .ar-btn:focus-visible { outline: 3px solid #fff; outline-offset: 2px; }
   [hidden] { display: none !important; }
   #xr-btn:focus-visible, #ar8-btn:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
 </style>
@@ -46,7 +53,13 @@
   <span class="msg" id="msg">Loading splat…</span>
   <button id="xr-btn" type="button" hidden>View in your room</button>
   <span id="ar-hint" class="ar-pill" hidden></span>
-  <button id="ar-size" class="ar-pill" type="button" hidden title="Back to real size">100%</button>
+  <div id="ar-tools" hidden>
+    <div class="seg" role="group" aria-label="One-finger gesture">
+      <button type="button" id="ar-move" aria-pressed="true">Move</button>
+      <button type="button" id="ar-rotate" aria-pressed="false">Rotate</button>
+    </div>
+    <button type="button" id="ar-realign" class="ar-btn">Re-align</button>
+  </div>
   <a id="ar8-btn" class="xr-link" target="_top" hidden>View on your table</a>
 </div>
 <script type="module">
@@ -58,6 +71,7 @@
   import { OrbitControls } from "three/addons/controls/OrbitControls.js";
   import { SparkRenderer, SplatMesh } from "@sparkjsdev/spark";
   import { makeSplatShadow } from "./splat-shadow.js";
+  import { measureSplat, realSize } from "./splat-size.js";
 
   const q = new URLSearchParams(location.search);
   const phone = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent) || (navigator.maxTouchPoints > 1 && /Mac/.test(navigator.platform));
@@ -86,7 +100,9 @@
 
   const scene = new THREE.Scene();
   const camera = new THREE.PerspectiveCamera(40, 1, 0.01, 50);
-  scene.add(new SparkRenderer({ renderer }));
+  // Phones: cut each Gaussian at 2.5 sigma instead of 2.8 (about 20% less area drawn, the cut-off edge is
+  // under 5% opacity) and cap a splat's on-screen radius; the same settings as splat-ar.html.
+  scene.add(new SparkRenderer(phone ? { renderer, maxStdDev: 2.5, maxPixelRadius: 256 } : { renderer }));
 
   const target = new THREE.Vector3(0, height * 0.5, 0);
   const dist = size * 2.2;
@@ -107,10 +123,21 @@
 
   const splat = new SplatMesh({ url: await splatUrl(src), fileType: "pcsogszip" });
   scene.add(splat);
-  // Soft shadow shaped like the object, as a child of the splat so it follows it in AR too (?shadow=0 turns it off).
+  // Real size (splat-size.js): measure the splat, scale it to the card's w / h if it is 4-25% off, and keep
+  // the label for AR. Then a soft shadow shaped like the object, as a child of the splat so it follows it
+  // in AR too (?shadow=0 turns it off).
+  const paramW = parseFloat(q.get("w") || "0"), paramH = parseFloat(q.get("h") || "0");
+  let baseScale = 1, realSizeText = "", footprint = size / 2, shapeShadow = null, splatReady = false;
   splat.initialized.then(() => {
     msg.hidden = true;
-    if (q.get("shadow") !== "0") { try { const sh = makeSplatShadow(THREE, splat); if (sh) splat.add(sh); } catch (e) { console.warn(e); } }
+    try {
+      const m = measureSplat(splat), r = realSize(m, paramW, paramH);
+      baseScale = r.fix; realSizeText = r.text;
+      splat.scale.setScalar(baseScale);
+      footprint = Math.min(0.4, Math.max(0.04, m.max * baseScale / 2));
+    } catch (e) { console.warn(e); }
+    if (q.get("shadow") !== "0") { try { shapeShadow = makeSplatShadow(THREE, splat); if (shapeShadow) splat.add(shapeShadow); } catch (e) { console.warn(e); } }
+    splatReady = true;
   })
     .catch((e) => { msg.textContent = "Could not load the splat"; console.error(e); });
 
@@ -128,92 +155,154 @@
     if (e.origin === location.origin && e.data && "spin" in e.data) controls.autoRotate = !!e.data.spin;
   });
 
-  // AR (WebXR, Chrome on Android; ARCore gives the full-quality camera). Before placing, the model
-  // sits on whatever surface is under the middle of the screen; a tap fixes it there. Then, like
-  // AR Quick Look and splat-ar.html: one finger drags it over the table, two fingers pinch to
-  // resize (25-300%) and twist to rotate, and the size chip goes back to the real size.
-  const overlay = document.getElementById("overlay"), hint = document.getElementById("ar-hint"), chip = document.getElementById("ar-size");
-  let xrSession = null, hitSource = null, placed = false, scale = 1, grab = null, pinch = null, moved = false;
+  // AR (WebXR, Chrome on Android; ARCore picks the main camera and tracks in metres from the start).
+  // Same behaviour as splat-ar.html on iPhone: the model appears on the first real surface under the
+  // middle of the screen, at real size, fading in with a ring around it; it follows that surface (height
+  // steadied with the median of recent hits, front turned to the phone) and settles by itself once the
+  // spot holds still for 1.2 s, or at once on a tap. Then one finger moves or rotates it (Move / Rotate
+  // switch), two fingers twist to rotate, and Re-align hands it back to the automatic placement. There is
+  // no pinch: the model stays at its real size.
+  const overlay = document.getElementById("overlay"), hint = document.getElementById("ar-hint"), tools = document.getElementById("ar-tools");
+  let xrSession = null, hitSource = null, arState = "searching", mode = "move", gesture = null, downAt = 0, fade = 1;
+  const arTarget = { pos: new THREE.Vector3(), yaw: 0 };
+  const samples = [];
+  let stableSince = 0, searchStart = 0, lastFrame = 0;
   const raycaster = new THREE.Raycaster();
-  function setScale(v) {
-    scale = Math.min(3, Math.max(0.25, v));
-    splat.scale.setScalar(scale);
-    chip.textContent = Math.round(scale * 100) + "%";
+  const xrCam = () => renderer.xr.getCamera().cameras[0] || renderer.xr.getCamera();
+
+  const ring = new THREE.Mesh(new THREE.RingGeometry(0.93, 1, 64),
+    new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, depthWrite: false, opacity: 0.9, side: THREE.DoubleSide }));
+  ring.rotation.x = -Math.PI / 2; ring.renderOrder = -1; ring.visible = false;
+  scene.add(ring);
+
+  function setArState(next) {
+    arState = next;
+    const placed = next === "placed";
+    tools.hidden = !placed;
+    if (placed) hint.textContent = (realSizeText ? "Real size · " + realSizeText + "\n" : "") + (mode === "move" ? "Drag to move · twist with two fingers to rotate" : "Drag sideways to rotate");
+    else { samples.length = 0; stableSince = 0; ring.material.opacity = 0.9; hint.textContent = splat.visible ? "Tap to place, or hold still" : "Point the phone at the table…"; }
   }
+  function setMode(m) {
+    mode = m;
+    document.getElementById("ar-move").setAttribute("aria-pressed", String(m === "move"));
+    document.getElementById("ar-rotate").setAttribute("aria-pressed", String(m === "rotate"));
+    if (arState === "placed") setArState("placed");
+  }
+  document.getElementById("ar-move").addEventListener("click", () => setMode("move"));
+  document.getElementById("ar-rotate").addEventListener("click", () => setMode("rotate"));
+  document.getElementById("ar-realign").addEventListener("click", () => { searchStart = performance.now(); setArState("searching"); });
+
   // The finger's point on the table: its ray from the AR camera meets the level plane the model stands on.
   function tablePoint(x, y) {
-    const cam = renderer.xr.getCamera().cameras[0] || renderer.xr.getCamera();
+    const cam = xrCam();
     raycaster.setFromCamera(new THREE.Vector2(x / innerWidth * 2 - 1, 1 - y / innerHeight * 2), cam);
-    const p = raycaster.ray.intersectPlane(new THREE.Plane(new THREE.Vector3(0, 1, 0), -splat.position.y), new THREE.Vector3());
-    return p && p.distanceTo(cam.getWorldPosition(new THREE.Vector3())) < 5 ? p : null;
+    const p = raycaster.ray.intersectPlane(new THREE.Plane(new THREE.Vector3(0, 1, 0), -arTarget.pos.y), new THREE.Vector3());
+    return p && p.distanceTo(cam.getWorldPosition(new THREE.Vector3())) < 4 ? p : null;
   }
-  const twoFinger = (t) => ({
-    dist: Math.hypot(t[1].clientX - t[0].clientX, t[1].clientY - t[0].clientY),
-    angle: Math.atan2(t[1].clientY - t[0].clientY, t[1].clientX - t[0].clientX),
-  });
+  const twoAngle = (t) => Math.atan2(t[1].clientY - t[0].clientY, t[1].clientX - t[0].clientX);
+  function beginGesture(touches, wasMoved) {
+    gesture = null;
+    if (touches.length === 1) {
+      const t = touches[0];
+      gesture = { kind: 1, x0: t.clientX, y0: t.clientY, moved: wasMoved, yaw: arTarget.yaw };
+      if (arState === "placed" && mode === "move") { const p = tablePoint(t.clientX, t.clientY); gesture.grab = p && arTarget.pos.clone().sub(p); }
+    } else if (touches.length >= 2) gesture = { kind: 2, angle: twoAngle(touches), yaw: arTarget.yaw, moved: true };
+  }
+  const onControl = (e) => e.target.closest && e.target.closest("button, a");
   overlay.addEventListener("touchstart", (e) => {
-    if (!xrSession || e.target === xrBtn || e.target === chip) return;
-    moved = false;
-    if (e.touches.length === 1 && placed) { const p = tablePoint(e.touches[0].clientX, e.touches[0].clientY); grab = p && splat.position.clone().sub(p); }
-    if (e.touches.length === 2 && placed) { grab = null; pinch = { ...twoFinger(e.touches), scale, yaw: splat.rotation.y }; }
+    if (!xrSession || onControl(e)) return;
+    if (e.touches.length === 1) downAt = e.timeStamp;
+    beginGesture(e.touches, false);
   }, { passive: true });
   overlay.addEventListener("touchmove", (e) => {
-    if (!xrSession || !placed) return;
-    moved = true;
-    if (e.touches.length === 1 && grab && !pinch) {
-      const p = tablePoint(e.touches[0].clientX, e.touches[0].clientY);
-      if (p) splat.position.set(p.x + grab.x, splat.position.y, p.z + grab.z);
-    } else if (e.touches.length === 2 && pinch) {
-      const g = twoFinger(e.touches);
-      setScale(pinch.scale * g.dist / pinch.dist);
-      splat.rotation.y = pinch.yaw - (g.angle - pinch.angle);
+    if (!xrSession || !gesture) return;
+    if (gesture.kind === 1 && e.touches.length === 1) {
+      const t = e.touches[0];
+      if (Math.hypot(t.clientX - gesture.x0, t.clientY - gesture.y0) > 10) gesture.moved = true;
+      if (arState !== "placed") return;
+      if (mode === "rotate") arTarget.yaw = gesture.yaw + (t.clientX - gesture.x0) / innerWidth * Math.PI * 1.5;
+      else if (gesture.grab) { const p = tablePoint(t.clientX, t.clientY); if (p) { arTarget.pos.x = p.x + gesture.grab.x; arTarget.pos.z = p.z + gesture.grab.z; } }
+    } else if (gesture.kind === 2 && e.touches.length >= 2 && arState === "placed") {
+      arTarget.yaw = gesture.yaw - (twoAngle(e.touches) - gesture.angle);
     }
   }, { passive: true });
   overlay.addEventListener("touchend", (e) => {
-    if (!xrSession) return;
-    if (e.touches.length < 2) pinch = null;
-    if (!e.touches.length) grab = null;
-    if (!placed && !moved && splat.visible && e.target !== xrBtn) {
-      placed = true; chip.hidden = false;
-      hint.textContent = "Drag to move · pinch to resize · twist to rotate";
-    }
+    if (!xrSession || !gesture) return;
+    const g = gesture;
+    if (g.kind === 1 && !g.moved && !e.touches.length && e.timeStamp - downAt < 500 && arState === "searching" && splat.visible) setArState("placed");
+    if (e.touches.length) beginGesture(e.touches, true); else gesture = null;  // re-anchor, so lifting one finger doesn't jump
   }, { passive: true });
-  chip.addEventListener("click", () => setScale(1));
 
   async function startAr() {
     xrSession = await navigator.xr.requestSession("immersive-ar", { optionalFeatures: ["hit-test", "local-floor", "dom-overlay"], domOverlay: { root: overlay } });
     renderer.xr.setReferenceSpaceType("local-floor");
     await renderer.xr.setSession(xrSession);
     overlay.classList.add("ar-on");
-    placed = false; chip.hidden = true; setScale(1); splat.rotation.set(0, 0, 0);
-    hint.hidden = false; hint.textContent = "Point the phone at a table…";
+    splat.rotation.set(0, 0, 0); splat.scale.setScalar(baseScale); setMode("move");
+    ring.scale.setScalar(footprint * 1.3);
+    hint.hidden = false; searchStart = performance.now(); lastFrame = 0;
     try {
       const viewer = await xrSession.requestReferenceSpace("viewer");
       hitSource = await xrSession.requestHitTestSource({ space: viewer });
-    } catch (e) {  // no hit-test: stand it on the floor 80 cm ahead, as before
-      hitSource = null; splat.position.set(0, 0, -0.8); splat.visible = true;
-      hint.textContent = "Tap to place it here";
+      splat.visible = false;
+    } catch (e) {  // no hit-test: stand it on the floor 80 cm ahead; a tap places it
+      hitSource = null; splat.visible = true; arTarget.pos.set(0, 0, -0.8); arTarget.yaw = 0; splat.position.copy(arTarget.pos);
     }
-    if (hitSource) splat.visible = false;
+    setArState("searching");
     xrBtn.textContent = "Exit AR";
     xrSession.addEventListener("end", () => {
-      xrSession = null; hitSource = null; pinch = grab = null;
-      overlay.classList.remove("ar-on"); hint.hidden = true; chip.hidden = true;
-      splat.position.set(0, 0, 0); splat.rotation.set(0, 0, 0); splat.scale.setScalar(1); splat.visible = true;
+      xrSession = null; hitSource = null; gesture = null;
+      overlay.classList.remove("ar-on"); hint.hidden = true; tools.hidden = true; ring.visible = false;
+      splat.position.set(0, 0, 0); splat.rotation.set(0, 0, 0); splat.scale.setScalar(baseScale); splat.visible = true; splat.opacity = 1;
+      if (shapeShadow) shapeShadow.material.opacity = 1;
       xrBtn.textContent = "View in your room";
     });
   }
-  // Before placing: follow the surface under the middle of the screen, front turned towards the phone.
-  function followSurface(frame) {
-    if (!hitSource || placed) return;
+  // Before placing: follow the surface under the middle of the screen (WebXR hit-tests only report real,
+  // tracked surfaces, so the model never shows at a guessed depth).
+  function followSurface(frame, now) {
+    if (!hitSource || arState !== "searching" || !splatReady) return;
     const hit = frame.getHitTestResults(hitSource)[0];
     if (!hit) return;
     const pose = hit.getPose(renderer.xr.getReferenceSpace());
     if (!pose) return;
-    const p = pose.transform.position, cam = renderer.xr.getCamera().getWorldPosition(new THREE.Vector3());
-    splat.position.set(p.x, p.y, p.z);
-    splat.rotation.set(0, Math.atan2(cam.x - p.x, cam.z - p.z), 0);
-    if (!splat.visible) { splat.visible = true; hint.textContent = "Tap to place it here"; }
+    const p = new THREE.Vector3().copy(pose.transform.position);
+    const cam = xrCam().getWorldPosition(new THREE.Vector3());
+    samples.push({ p, t: now });
+    while (samples.length > 6 && now - samples[0].t > 1200) samples.shift();  // the last 1.2 s, and at least 6 hits
+    const ys = samples.map((s) => s.p.y).sort((a, b) => a - b);
+    arTarget.pos.set(p.x, ys[ys.length >> 1], p.z);
+    arTarget.yaw = Math.atan2(cam.x - p.x, cam.z - p.z);
+    if (!splat.visible) {  // spawn in place, fading in at real size
+      splat.position.copy(arTarget.pos); splat.rotation.y = arTarget.yaw; splat.visible = true; fade = 0;
+      setArState("searching");
+    }
+    const tol = Math.max(0.015, 0.035 * cam.distanceTo(arTarget.pos));
+    const steady = samples.length >= 6 && samples.every((s) => s.p.distanceTo(arTarget.pos) < tol);
+    if (!steady) stableSince = 0;
+    else if (!stableSince) stableSince = now;
+    else if (now - stableSince > 1200 && now - searchStart > 1500) setArState("placed");
+  }
+  window.__splatView = { state: () => ({ arState, mode, visible: splat.visible, opacity: splat.opacity, scale: splat.scale.x, baseScale, realSizeText,
+    pos: splat.position.toArray(), target: arTarget.pos.toArray(), yaw: splat.rotation.y, targetYaw: arTarget.yaw, ring: ring.visible }) };  // for tests
+  function updateAr(frame) {
+    const now = performance.now();
+    const dt = lastFrame ? Math.min(0.1, (now - lastFrame) / 1000) : 1 / 60;
+    lastFrame = now;
+    if (frame) followSurface(frame, now);
+    if (!splat.visible) { ring.visible = false; return; }
+    if (fade < 1) {  // fade in over a third of a second after spawning
+      fade = Math.min(1, fade + dt / 0.35);
+      splat.opacity = fade;
+      if (shapeShadow) shapeShadow.material.opacity = fade;
+    }
+    const k = 1 - Math.pow(arState === "searching" ? 0.82 : 0.6, dt * 60);  // frame-rate independent easing
+    splat.position.lerp(arTarget.pos, k);
+    const d = Math.atan2(Math.sin(arTarget.yaw - splat.rotation.y), Math.cos(arTarget.yaw - splat.rotation.y));
+    splat.rotation.y += d * k;
+    ring.position.set(splat.position.x, splat.position.y + 0.002, splat.position.z);
+    ring.material.opacity = arState === "searching" ? 0.55 + 0.35 * Math.sin(now / 250) : Math.max(0, ring.material.opacity - dt * 3);
+    ring.visible = ring.material.opacity > 0.01;
   }
   xrBtn.addEventListener("click", () => {
     if (xrSession) xrSession.end();
@@ -230,7 +319,7 @@
       controls.target.y = Math.min(height, Math.max(0, controls.target.y));  // panning can't sink the view under the table
       controls.update();
     }
-    else if (frame) followSurface(frame);
+    else updateAr(frame);
     renderer.render(scene, camera);
   });
 </script>

@@ -86,6 +86,7 @@
   import * as THREE from "three";
   import { SparkRenderer, SplatMesh } from "@sparkjsdev/spark";
   import { makeSplatShadow } from "./splat-shadow.js";
+  import { measureSplat, realSize } from "./splat-size.js";
 
   const XR_URL = "https://cdn.jsdelivr.net/npm/@8thwall/engine-binary@1.0.0/dist/xr.js";
   const q = new URLSearchParams(location.search);
@@ -430,30 +431,7 @@
       buffer: s && s.renderer.getDrawingBufferSize(new THREE.Vector2()).toArray(), canvas: [canvas.width, canvas.height], renderScale, camInfo,
       samples: samples.map((p) => [+(p.t - performance.now()).toFixed(0), p.solid, +p.p.distanceTo(target.pos).toFixed(4)]), stableSince, tracking, fps: stats.fps };
   };
-  // Real-size check. The splats are converted to real size in metres (tools/splat_web.py scales the solid
-  // splats' 0.3-99.7 percentile box to the measured width, length or height), and the card passes that
-  // size as w / h. Measure the same box here; if it is 4-25% off what the card says, scale the model to
-  // match. Bigger gaps mean the card's numbers are wrong, so the file is left alone and a warning logged.
-  function measureSplat(sm) {
-    const X = [], Y = [], Z = [];
-    sm.forEachSplat((i, c, sc, quat, o) => { if (o > 0.05) { X.push(c.x); Y.push(c.y); Z.push(c.z); } });
-    const ext = (a) => { const b = Float32Array.from(a).sort(); return b[Math.floor(0.997 * (b.length - 1))] - b[Math.floor(0.003 * (b.length - 1))]; };
-    const x = ext(X), z = ext(Z);
-    return { mean: (x + z) / 2, max: Math.max(x, z), h: ext(Y) };
-  }
-  // Returns the scale to apply and the object's real size after it (the dimension the card names: its
-  // width or length "across", or its height "tall"), for the label.
-  function realSize(m) {
-    const dims = paramW ? [m.mean, m.max] : paramH ? [m.h] : [m.max];
-    const want = paramW || paramH;
-    const dim = want ? dims.reduce((a, b) => (Math.abs(Math.log(want / b)) < Math.abs(Math.log(want / a)) ? b : a)) : dims[0];
-    let fix = want && isFinite(want / dim) ? want / dim : 1;
-    if (Math.abs(fix - 1) <= 0.04) fix = 1;
-    else if (Math.abs(fix - 1) >= 0.25) { console.warn("[splat-ar] size on the card doesn't match the splat; left unscaled", m, paramW, paramH); fix = 1; }
-    return { fix, text: cm(dim * fix) + (paramH && !paramW ? " tall" : " across") };
-  }
-  const cm = (v) => (v < 0.1 ? (v * 100).toFixed(1).replace(/\.0$/, "") : Math.round(v * 100)) + " cm";
-
+  // Real-size check (splat-size.js): scale the model to the card's w / h if it is 4-25% off, and label it.
   function onTracking({ status, reason }) {
     const was = tracking;
     tracking = status; trackingReason = reason || "";
@@ -481,7 +459,7 @@
         scene.add(model);
         splat.initialized.then(() => {
           let m = null, fix = 1;
-          try { m = measureSplat(splat); const r = realSize(m); fix = r.fix; realSizeText = r.text; } catch (e) { console.warn(e); }
+          try { m = measureSplat(splat); const r = realSize(m, paramW, paramH); fix = r.fix; realSizeText = r.text; } catch (e) { console.warn(e); }
           if (fix !== 1) splat.scale.setScalar(fix);
           window.__splatAr.size = { measured: m, fix };
           // The shadow and ring follow the object's real footprint.
