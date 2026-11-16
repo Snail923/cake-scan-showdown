@@ -115,7 +115,7 @@
       <iframe id="viewer" title="3D splat viewer" allow="xr-spatial-tracking; fullscreen" hidden></iframe>
       <div class="placeholder" id="placeholder" hidden>
         <strong>Coming soon</strong>
-        <span>This dish is being captured. It will appear here once it is trained and cleaned.</span>
+        <span>Reference only for now: this dish is being captured. The details on the right describe the planned capture; the 3D splat will appear here once it is trained and cleaned.</span>
       </div>
     </div>
     <div class="info" aria-live="polite">
@@ -200,10 +200,19 @@
       lead: "A mini pizza with a glossy ketchup drizzle and green peppers.",
       facts: [["Photos", "181 (3 heights)"], ["Splats", "98,769"], ["Size", "4.2 MB (phone 2.1)"], ["Cameras", "Agisoft Metashape"]],
       notes: ["The ketchup gloss moves as you orbit, which a mesh texture cannot show."] },
-    { id: "pizza-medium", label: "Medium pizza", soon: true,
-      lead: "A 30 cm pizza, captured on a white pen-marked mat under one overhead light.",
-      facts: [["Photos", "about 190 planned"], ["Rings", "3 + top-down"], ["Status", "Capturing"], ["Background", "White, no green"]],
-      notes: ["New capture setup based on everything learned from the dishes above."] }
+    { id: "pizza-plain", label: "Medium pizza · plain", soon: true,
+      lead: "Reference for the next capture: a medium pizza (about 30 cm) without ketchup, to show the cheese, crust and toppings on their own.",
+      facts: [["Size", "about 30 cm across"], ["Photos", "about 188 planned"], ["Rings", "3 × 60 + 8 top-down"], ["Status", "Capturing"]],
+      notes: ["Captured first, before the ketchup goes on, so both versions are the same pizza.",
+              "White pen-marked mat on the turntable, plain white wall, no green screen.",
+              "One large diffused light above the turntable instead of the ring light, so the cheese has no moving glare.",
+              "Pro mode: 1× lens, ISO 100, 1/100 s, 5000 K, focus locked, the same for every ring."] },
+    { id: "pizza-ketchup", label: "Medium pizza · ketchup", soon: true,
+      lead: "Reference for the next capture: the same medium pizza with a ketchup drizzle, to test how the splat keeps the gloss.",
+      facts: [["Size", "about 30 cm across"], ["Photos", "about 188 planned"], ["Rings", "3 × 60 + 8 top-down"], ["Status", "Capturing"]],
+      notes: ["Shot right after the plain version, with the pizza, mat, light and camera settings unchanged.",
+              "The only difference is the ketchup, so the two splats can be compared side by side.",
+              "The mini pizza above showed the ketchup gloss moving as you orbit; this tests it at full size."] }
   ];
 
   var picker = document.querySelector(".picker");
