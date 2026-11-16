@@ -186,12 +186,13 @@
               "White pen-marked mat on the turntable and a plain white wall: no green screen, so no green reflections to clean.",
               "All 179 camera positions lined up on the first try (1.2 px error).",
               "Levelled so it sits flat on the table in AR."] },
-    { id: "pizza-ketchup", label: "Medium pizza · ketchup", soon: true,
-      lead: "Reference for the next capture: the same medium pizza with a ketchup drizzle, to test how the splat keeps the gloss.",
-      facts: [["Size", "about 30 cm across"], ["Photos", "about 188 planned"], ["Rings", "3 × 60 + 8 top-down"], ["Status", "Capturing"]],
-      notes: ["Shot right after the plain version, with the pizza, mat, light and camera settings unchanged.",
-              "The only difference is the ketchup, so the two splats can be compared side by side.",
-              "The mini pizza above showed the ketchup gloss moving as you orbit; this tests it at full size."] }
+    { id: "pizza-ketchup", label: "Medium pizza · ketchup", src: "pizza_ketchup_splat.sog", params: "h=0.027&w=0.3",
+      lead: "The same medium pizza with ketchup drops, shot right after the plain version.",
+      facts: [["Photos", "179 (3 heights)"], ["Splats", "149,016"], ["Size", "4.8 MB (phone 2.8)"], ["Width", "30 cm"]],
+      notes: ["Same pizza, mat, light and camera settings as the plain version: the only difference is the ketchup.",
+              "The ketchup gloss changes as you orbit, which a mesh texture cannot show.",
+              "All 179 camera positions lined up on the first try (1.2 px error).",
+              "Levelled so it sits flat on the table in AR."] }
   ];
 
   var picker = document.querySelector(".picker");
