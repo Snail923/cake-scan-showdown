@@ -1,0 +1,251 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Final Scan Results</title>
+<meta name="description" content="The best Gaussian splat of each dish from the Cake Scan Showdown, viewable in 3D and in AR on iPhone and Android.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+  :root {
+    --ground: #f5f3f7; --surface: #ffffff; --stage: #ebe7ef; --ink: #1e1b24; --muted: #6b6575;
+    --rule: #e0dbe6; --accent: #a8285f; --accent-ink: #ffffff; --accent-soft: #f6e3ec;
+    --good: #2f7d4f; --good-soft: #e3f2e8; --warn: #a86512; --warn-soft: #fbefdc;
+    --display: "Bricolage Grotesque", "Avenir Next", "Segoe UI", sans-serif;
+    --body: "IBM Plex Sans", "Segoe UI", system-ui, sans-serif;
+    --mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      color-scheme: dark;
+      --ground: #141218; --surface: #1c1a21; --stage: #24212a; --ink: #eeeaf2; --muted: #a39cad;
+      --rule: #322e39; --accent: #e46a9e; --accent-ink: #1a0d14; --accent-soft: #3a1d2b;
+      --good: #6cc790; --good-soft: #1d3326; --warn: #e8a54f; --warn-soft: #33261a;
+    }
+  }
+  :root[data-theme="dark"] {
+    color-scheme: dark;
+    --ground: #141218; --surface: #1c1a21; --stage: #24212a; --ink: #eeeaf2; --muted: #a39cad;
+    --rule: #322e39; --accent: #e46a9e; --accent-ink: #1a0d14; --accent-soft: #3a1d2b;
+    --good: #6cc790; --good-soft: #1d3326; --warn: #e8a54f; --warn-soft: #33261a;
+  }
+
+  * { box-sizing: border-box; }
+  [hidden] { display: none !important; }
+  body { margin: 0; background: var(--ground); color: var(--ink); font: 15px/1.55 var(--body); }
+  .wrap { max-width: 1180px; margin: 0 auto; padding: 28px 16px 64px; }
+  @media (min-width: 720px) { .wrap { padding-inline: 32px; padding-top: 36px; } }
+  a { color: var(--accent); }
+  :focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+
+  .crumb { font: 500 13px/1 var(--mono); text-decoration: none; display: inline-flex; gap: 6px; margin-bottom: 22px; }
+  header { display: grid; gap: 10px; margin-bottom: 26px; max-width: 68ch; }
+  .eyebrow { font: 500 12px/1 var(--mono); letter-spacing: .08em; text-transform: uppercase; color: var(--accent); }
+  h1 { font: 700 clamp(30px, 5vw, 46px)/1.05 var(--display); margin: 0; letter-spacing: -.02em; text-wrap: balance; }
+  header p { margin: 0; color: var(--muted); }
+  h2 { font: 700 26px/1.1 var(--display); margin: 0 0 14px; letter-spacing: -.01em; }
+
+  /* model picker */
+  .picker { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 4px; margin-bottom: 14px; scrollbar-width: thin; }
+  .chip {
+    flex: none; font: 600 14px/1 var(--body); border: 1px solid var(--rule); border-radius: 999px;
+    padding: 10px 14px; background: var(--surface); color: var(--ink); cursor: pointer; display: inline-flex; gap: 8px; align-items: center;
+  }
+  .chip[aria-selected="true"] { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+  .chip:disabled { cursor: default; color: var(--muted); border-style: dashed; background: transparent; }
+  .chip .soon { font: 500 11px/1 var(--mono); text-transform: uppercase; letter-spacing: .05em; }
+
+  /* featured viewer */
+  .feature { display: grid; gap: 0; background: var(--surface); border: 1px solid var(--rule); border-radius: 14px; overflow: hidden; }
+  @media (min-width: 900px) { .feature { grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr); } }
+  .stage { position: relative; background: var(--stage); aspect-ratio: 1 / 1; }
+  @media (min-width: 900px) { .stage { aspect-ratio: auto; min-height: 560px; } }
+  .stage iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; }
+  .placeholder { position: absolute; inset: 0; display: grid; place-content: center; gap: 10px; text-align: center; padding: 24px; color: var(--muted); }
+  .placeholder strong { font: 700 22px/1.2 var(--display); color: var(--ink); }
+
+  .info { padding: 20px 20px 22px; display: grid; gap: 16px; align-content: start; border-top: 1px solid var(--rule); }
+  @media (min-width: 900px) { .info { border-top: 0; border-left: 1px solid var(--rule); } }
+  .info h3 { font: 700 26px/1.1 var(--display); margin: 0; }
+  .info .lead { margin: 0; color: var(--muted); }
+  .facts { display: grid; grid-template-columns: repeat(2, 1fr); gap: 1px; background: var(--rule); border: 1px solid var(--rule); border-radius: 10px; overflow: hidden; margin: 0; }
+  .facts div { background: var(--surface); padding: 10px 12px; }
+  .facts dt { font: 500 11px/1.2 var(--mono); text-transform: uppercase; letter-spacing: .06em; color: var(--muted); }
+  .facts dd { margin: 4px 0 0; font: 500 15px/1.25 var(--mono); font-variant-numeric: tabular-nums; }
+  .notes { margin: 0; padding-left: 18px; display: grid; gap: 6px; }
+  .hint { font: 13px/1.45 var(--body); color: var(--muted); margin: 0; padding: 10px 12px; background: var(--accent-soft); border-radius: 10px; }
+  .hint strong { color: var(--ink); }
+
+  /* comparison */
+  section { margin-top: 48px; }
+  .table-wrap { overflow-x: auto; background: var(--surface); border: 1px solid var(--rule); border-radius: 14px; }
+  table { border-collapse: collapse; width: 100%; min-width: 620px; font-size: 14px; }
+  th, td { text-align: left; padding: 11px 14px; border-bottom: 1px solid var(--rule); vertical-align: top; }
+  thead th { font: 500 11px/1.2 var(--mono); text-transform: uppercase; letter-spacing: .06em; color: var(--muted); background: var(--stage); }
+  tbody tr:last-child td { border-bottom: 0; }
+  td:first-child { font-weight: 600; }
+  .win { color: var(--good); font-weight: 600; }
+
+  .cards { display: grid; gap: 14px; grid-template-columns: 1fr; }
+  @media (min-width: 720px) { .cards { grid-template-columns: repeat(3, 1fr); } }
+  .note-card { background: var(--surface); border: 1px solid var(--rule); border-radius: 14px; padding: 18px; }
+  .note-card h3 { font: 700 18px/1.2 var(--display); margin: 0 0 8px; }
+  .note-card p, .note-card ul { margin: 0; color: var(--muted); }
+  .note-card ul { padding-left: 18px; display: grid; gap: 4px; }
+
+  footer { margin-top: 48px; color: var(--muted); font-size: 13px; display: flex; flex-wrap: wrap; gap: 8px 18px; justify-content: space-between; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <a class="crumb" href="./">← All scans and comparisons</a>
+
+  <header>
+    <span class="eyebrow">Cake Scan Showdown · final results</span>
+    <h1>The best scan of every dish</h1>
+    <p>After comparing three phone apps, Meshroom, Agisoft Metashape and Gaussian splatting on the same captures, the Gaussian splats looked the most real: they keep glass, gloss and fine crumbs that a textured mesh loses. These are the final, cleaned splats. Drag to orbit, pinch or scroll to zoom, and tap <strong>View on your table</strong> on a phone to place the dish in AR (iPhone and Android).</p>
+  </header>
+
+  <div class="picker" role="tablist" aria-label="Choose a dish"></div>
+
+  <div class="feature">
+    <div class="stage">
+      <iframe id="viewer" title="3D splat viewer" allow="xr-spatial-tracking; fullscreen" hidden></iframe>
+      <div class="placeholder" id="placeholder" hidden>
+        <strong>Coming soon</strong>
+        <span>This dish is being captured. It will appear here once it is trained and cleaned.</span>
+      </div>
+    </div>
+    <div class="info" aria-live="polite">
+      <h3 id="m-name"></h3>
+      <p class="lead" id="m-lead"></p>
+      <dl class="facts" id="m-facts"></dl>
+      <ul class="notes" id="m-notes"></ul>
+      <p class="hint"><strong>On a phone:</strong> tap <em>View on your table</em>, point at a flat surface, tap to place it, then drag to move, pinch to resize and twist to turn.</p>
+    </div>
+  </div>
+
+  <section>
+    <h2>Splat or mesh?</h2>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th></th><th>Gaussian splat (final)</th><th>Photogrammetry mesh</th></tr></thead>
+        <tbody>
+          <tr><td>Glass, juice, gloss</td><td class="win">Captured as seen</td><td>Holes or fog; glass had to be modelled by hand</td></tr>
+          <tr><td>Fine detail (crumbs, oats, granola)</td><td class="win">Sharp, soft edges look natural</td><td>Smoothed into the texture</td></tr>
+          <tr><td>Colour changing with the angle</td><td class="win">Yes (reflections move)</td><td>No, colour is fixed on the surface</td></tr>
+          <tr><td>File size on a phone</td><td>0.6–5 MB</td><td class="win">Similar, or smaller with 2K textures</td></tr>
+          <tr><td>AR on Android</td><td>WebXR in the browser</td><td>Scene Viewer or WebXR</td></tr>
+          <tr><td>AR on iPhone</td><td>In the browser with 8th Wall tracking</td><td class="win">Native AR Quick Look</td></tr>
+          <tr><td>Editing, 3D printing, game engines</td><td>Limited (no surface)</td><td class="win">Full mesh, easy to edit</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section>
+    <h2>Capture recipe that worked best</h2>
+    <div class="cards">
+      <div class="note-card">
+        <h3>Background</h3>
+        <p>A plain, matte white wall and a white mat with random bold pen marks that turns with the food. Green screens left green reflections on plates and glass that had to be cleaned out afterwards.</p>
+      </div>
+      <div class="note-card">
+        <h3>Light and camera</h3>
+        <ul>
+          <li>One large diffused light above the turntable, no ring light</li>
+          <li>Pro mode, 1× lens, ISO 100, 1/100 s, fixed white balance and focus</li>
+          <li>The same exposure for every ring</li>
+        </ul>
+      </div>
+      <div class="note-card">
+        <h3>Photos</h3>
+        <ul>
+          <li>Three rings of 60 photos (6° per turn) at low, middle and high angles</li>
+          <li>Tethered to the PC, so the phone is never touched</li>
+          <li>Check every ring lines up before training</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <footer>
+    <span>Captured on a Samsung Galaxy A23. Splats trained with Brush in OOOSplat and shown with Spark.</span>
+    <a href="./">See every scan and app →</a>
+  </footer>
+</div>
+
+<script>
+  // One viewer for the whole page: picking a dish swaps the splat, so phones only hold one model in memory.
+  var MODELS = [
+    { id: "cake", label: "Marble cake", src: "cake2_splat.sog", params: "h=0.164&w=0.4",
+      lead: "A marble cake in its paper liner, from the second capture at four heights.",
+      facts: [["Photos", "245"], ["Splats", "302,586"], ["Size", "7.0 MB (phone 5.1)"], ["Cameras", "Agisoft Metashape"]],
+      notes: ["The crumb texture and paper liner folds stay sharp.", "Green-screen reflections in the shadows were removed."] },
+    { id: "jar", label: "Overnight oats jar", src: "jar_splat.sog", params: "h=0.26",
+      lead: "Overnight oats in a glass jar with a lid and spoon. The real glass is captured, not modelled.",
+      facts: [["Photos", "122"], ["Splats", "312,409"], ["Size", "7.1 MB (phone 5.2)"], ["Cameras", "Meshroom"]],
+      notes: ["Photogrammetry could not see the glass; the splat keeps it.", "Green tint on the clear areas cleaned."] },
+    { id: "juice", label: "Glass of juice", src: "juice_splat.sog", params: "h=0.14&maxel=35",
+      lead: "A glass of juice on a turntable, shot on a white mat with pen marks instead of a green screen.",
+      facts: [["Photos", "118 (2 heights)"], ["Splats", "28,968"], ["Size", "1.0 MB (phone 0.6)"], ["Height", "14 cm"]],
+      notes: ["Haze, white streaks, dark specks and the smudge under the glass removed.", "The view stops at 35° above the table, the highest angle photographed."] },
+    { id: "bar", label: "Granola bar", src: "bar_splat.sog", params: "h=0.031&w=0.2",
+      lead: "A granola bar on a cream plate, turntable capture.",
+      facts: [["Photos", "176"], ["Splats", "154,709"], ["Size", "4.3 MB (phone 2.8)"], ["Width", "20 cm"]],
+      notes: ["Camera positions fixed ring by ring, so the bar no longer swims as you orbit.", "Green reflections on the plate recoloured."] },
+    { id: "pizza2", label: "Mini pizza", src: "pizza2_splat.sog", params: "h=0.062&w=0.3",
+      lead: "A mini pizza with a glossy ketchup drizzle and green peppers.",
+      facts: [["Photos", "181 (3 heights)"], ["Splats", "98,769"], ["Size", "4.2 MB (phone 2.1)"], ["Cameras", "Agisoft Metashape"]],
+      notes: ["The ketchup gloss moves as you orbit, which a mesh texture cannot show."] },
+    { id: "pizza-medium", label: "Medium pizza", soon: true,
+      lead: "A 30 cm pizza, captured on a white pen-marked mat under one overhead light.",
+      facts: [["Photos", "about 190 planned"], ["Rings", "3 + top-down"], ["Status", "Capturing"], ["Background", "White, no green"]],
+      notes: ["New capture setup based on everything learned from the dishes above."] }
+  ];
+
+  var picker = document.querySelector(".picker");
+  var frame = document.getElementById("viewer");
+  var placeholder = document.getElementById("placeholder");
+  var chips = MODELS.map(function (m) {
+    var b = document.createElement("button");
+    b.type = "button"; b.className = "chip"; b.setAttribute("role", "tab"); b.id = "tab-" + m.id;
+    b.textContent = m.label;
+    if (m.soon) { var s = document.createElement("span"); s.className = "soon"; s.textContent = "soon"; b.appendChild(s); }
+    b.addEventListener("click", function () { show(m.id, true); });
+    picker.appendChild(b);
+    return b;
+  });
+
+  function text(id, value) { document.getElementById(id).textContent = value; }
+
+  function show(id, push) {
+    var m = MODELS.filter(function (x) { return x.id === id; })[0] || MODELS[0];
+    chips.forEach(function (c, i) { c.setAttribute("aria-selected", MODELS[i] === m ? "true" : "false"); });
+    text("m-name", m.label);
+    text("m-lead", m.lead);
+    var facts = document.getElementById("m-facts"); facts.innerHTML = "";
+    m.facts.forEach(function (f) {
+      var d = document.createElement("div"), dt = document.createElement("dt"), dd = document.createElement("dd");
+      dt.textContent = f[0]; dd.textContent = f[1]; d.appendChild(dt); d.appendChild(dd); facts.appendChild(d);
+    });
+    var notes = document.getElementById("m-notes"); notes.innerHTML = "";
+    m.notes.forEach(function (n) { var li = document.createElement("li"); li.textContent = n; notes.appendChild(li); });
+    if (m.soon) {
+      frame.hidden = true; frame.removeAttribute("src"); placeholder.hidden = false;
+    } else {
+      placeholder.hidden = true; frame.hidden = false;
+      frame.title = "3D splat of the " + m.label.toLowerCase();
+      var url = "splat.html?src=" + m.src + "&" + m.params;
+      if (frame.getAttribute("src") !== url) frame.setAttribute("src", url);
+    }
+    if (push && history.replaceState) history.replaceState(null, "", "#" + m.id);
+  }
+
+  show(location.hash.slice(1) || "cake", false);
+  window.addEventListener("hashchange", function () { show(location.hash.slice(1), false); });
+</script>
+</body>
+</html>

@@ -80,6 +80,7 @@
   .ar-btn:focus-visible, .toolbar input:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
   .no-ar { position: absolute; left: 12px; bottom: 12px; right: 12px; text-align: center; font: 12px/1.35 var(--mono); color: var(--muted); }
   model-viewer[data-ar-ok] .no-ar { display: none; }
+  .final-link a { font: 600 15px/1.3 var(--body); color: var(--accent); }
   .splat-frame { display: block; width: 100%; aspect-ratio: 1 / 1; border: 0; background: var(--stage); }
 
     .stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1px; background: var(--rule); border-top: 1px solid var(--rule); }
@@ -97,6 +98,7 @@
   <header>
     <span class="eyebrow">3D scan benchmark · one cake, a glass jar and two mini pizzas · three apps + two PC tools · mid-range Android phone</span>
     <h1>Cake Scan Showdown</h1>
+    <p class="final-link"><a href="results.html">See the final results: the best scan of every dish →</a></p>
     <p>The same cake captured with RealityScan, Polycam and KIRI Engine, with a second, full-resolution or cleaned-up version from each app, plus two PC scans: one made in Agisoft Metashape from 241 phone photos, and a second capture of 245 photos from four heights, processed in both the free, open-source Meshroom and Agisoft Metashape. The last cards are extra tests. A glass jar of overnight oats (122 photos, Meshroom): the oats, lid and spoon are scanned, but glass cannot be captured by photogrammetry, so the fogged glass patches were removed and the jar wall was modelled as clear glass to the measured size. Two mini pizzas (180 and 181 photos from three heights each), with their green peppers kept despite the green backdrop; the second has a glossy ketchup drizzle. Each pizza was processed in both Meshroom and Agisoft Metashape from the same photos, shown side by side. The Metashape version of the second pizza also appears polished in Blender: floating bits removed, the surface smoothed, the colour deepened and the ketchup made glossy. The cake (245-photo capture), the jar and the second pizza also appear as Gaussian splats trained from the same photos, plus a glass of juice and a granola bar on a plate (turntable photos) captured only as splats: instead of a surface, it is millions of soft coloured blobs whose colour changes with the viewing angle, so the real glass, the ketchup gloss and reflections are captured. Splats open in AR in the browser on both Android and iPhone (iPhone uses 8th Wall's free XR engine for camera tracking, since Safari has no WebXR). Drag to orbit each model, pinch or scroll to zoom, and tap <strong>View on your table</strong> on a phone to place it in AR (iPhone and Android).</p>
   </header>
 
