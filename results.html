@@ -179,13 +179,13 @@
 <script>
   // One viewer for the whole page: picking a dish swaps the splat, so phones only hold one model in memory.
   var MODELS = [
-    { id: "pizza-plain", label: "Medium pizza · plain", soon: true,
-      lead: "Reference for the next capture: a medium pizza (about 30 cm) without ketchup, to show the cheese, crust and toppings on their own.",
-      facts: [["Size", "about 30 cm across"], ["Photos", "about 188 planned"], ["Rings", "3 × 60 + 8 top-down"], ["Status", "Capturing"]],
-      notes: ["Captured first, before the ketchup goes on, so both versions are the same pizza.",
-              "White pen-marked mat on the turntable, plain white wall, no green screen.",
-              "One large diffused light above the turntable instead of the ring light, so the cheese has no moving glare.",
-              "Pro mode: 1× lens, ISO 100, 1/100 s, 5000 K, focus locked, the same for every ring."] },
+    { id: "pizza-plain", label: "Medium pizza · plain", src: "pizza_plain_splat.sog", params: "h=0.029&w=0.3",
+      lead: "A medium pizza without ketchup: crust, cheese, tomato, peppers and corn, on its cardboard base.",
+      facts: [["Photos", "179 (3 heights)"], ["Splats", "164,964"], ["Size", "5.1 MB (phone 3.1)"], ["Width", "30 cm"]],
+      notes: ["Shot first, before the ketchup went on, so both versions are the same pizza.",
+              "White pen-marked mat on the turntable and a plain white wall: no green screen, so no green reflections to clean.",
+              "All 179 camera positions lined up on the first try (1.2 px error).",
+              "Levelled so it sits flat on the table in AR."] },
     { id: "pizza-ketchup", label: "Medium pizza · ketchup", soon: true,
       lead: "Reference for the next capture: the same medium pizza with a ketchup drizzle, to test how the splat keeps the gloss.",
       facts: [["Size", "about 30 cm across"], ["Photos", "about 188 planned"], ["Rings", "3 × 60 + 8 top-down"], ["Status", "Capturing"]],
