@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Final Scan Results</title>
-<meta name="description" content="The best Gaussian splat of each dish from the Cake Scan Showdown, viewable in 3D and in AR on iPhone and Android.">
+<meta name="description" content="The final Gaussian splat scans of a medium pizza, plain and with ketchup, viewable in 3D and in AR on iPhone and Android.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
@@ -55,7 +55,6 @@
   }
   .chip[aria-selected="true"] { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
   .chip:disabled { cursor: default; color: var(--muted); border-style: dashed; background: transparent; }
-  .chip .soon { font: 500 11px/1 var(--mono); text-transform: uppercase; letter-spacing: .05em; }
 
   /* featured viewer */
   .feature { display: grid; gap: 0; background: var(--surface); border: 1px solid var(--rule); border-radius: 14px; overflow: hidden; }
@@ -104,17 +103,17 @@
 
   <header>
     <span class="eyebrow">Cake Scan Showdown · final results</span>
-    <h1>The best scan of every dish</h1>
-    <p>After comparing three phone apps, Meshroom, Agisoft Metashape and Gaussian splatting on the same captures, the Gaussian splats looked the most real: they keep glass, gloss and fine crumbs that a textured mesh loses. These are the final, cleaned splats. Drag to orbit, pinch or scroll to zoom, and tap <strong>View on your table</strong> on a phone to place the dish in AR (iPhone and Android).</p>
+    <h1>Medium pizza, plain and with ketchup</h1>
+    <p>The final capture: one medium pizza (about 30 cm), scanned twice as a Gaussian splat, first plain and then with a ketchup drizzle, with the same setup and camera settings, so the two can be compared side by side. Drag to orbit, pinch or scroll to zoom, and tap <strong>View on your table</strong> on a phone to place the pizza in AR (iPhone and Android).</p>
   </header>
 
-  <div class="picker" role="tablist" aria-label="Choose a dish"></div>
+  <div class="picker" role="tablist" aria-label="Choose a version"></div>
 
   <div class="feature">
     <div class="stage">
       <iframe id="viewer" title="3D splat viewer" allow="xr-spatial-tracking; fullscreen" hidden></iframe>
       <div class="placeholder" id="placeholder" hidden>
-        <strong>Coming soon</strong>
+        <strong>Being captured</strong>
         <span>Reference only for now: this dish is being captured. The details on the right describe the planned capture; the 3D splat will appear here once it is trained and cleaned.</span>
       </div>
     </div>
@@ -180,26 +179,6 @@
 <script>
   // One viewer for the whole page: picking a dish swaps the splat, so phones only hold one model in memory.
   var MODELS = [
-    { id: "cake", label: "Marble cake", src: "cake2_splat.sog", params: "h=0.164&w=0.4",
-      lead: "A marble cake in its paper liner, from the second capture at four heights.",
-      facts: [["Photos", "245"], ["Splats", "302,586"], ["Size", "7.0 MB (phone 5.1)"], ["Cameras", "Agisoft Metashape"]],
-      notes: ["The crumb texture and paper liner folds stay sharp.", "Green-screen reflections in the shadows were removed."] },
-    { id: "jar", label: "Overnight oats jar", src: "jar_splat.sog", params: "h=0.26",
-      lead: "Overnight oats in a glass jar with a lid and spoon. The real glass is captured, not modelled.",
-      facts: [["Photos", "122"], ["Splats", "312,409"], ["Size", "7.1 MB (phone 5.2)"], ["Cameras", "Meshroom"]],
-      notes: ["Photogrammetry could not see the glass; the splat keeps it.", "Green tint on the clear areas cleaned."] },
-    { id: "juice", label: "Glass of juice", src: "juice_splat.sog", params: "h=0.14&maxel=35",
-      lead: "A glass of juice on a turntable, shot on a white mat with pen marks instead of a green screen.",
-      facts: [["Photos", "118 (2 heights)"], ["Splats", "28,968"], ["Size", "1.0 MB (phone 0.6)"], ["Height", "14 cm"]],
-      notes: ["Haze, white streaks, dark specks and the smudge under the glass removed.", "The view stops at 35° above the table, the highest angle photographed."] },
-    { id: "bar", label: "Granola bar", src: "bar_splat.sog", params: "h=0.031&w=0.2",
-      lead: "A granola bar on a cream plate, turntable capture.",
-      facts: [["Photos", "176"], ["Splats", "154,709"], ["Size", "4.3 MB (phone 2.8)"], ["Width", "20 cm"]],
-      notes: ["Camera positions fixed ring by ring, so the bar no longer swims as you orbit.", "Green reflections on the plate recoloured."] },
-    { id: "pizza2", label: "Mini pizza", src: "pizza2_splat.sog", params: "h=0.062&w=0.3",
-      lead: "A mini pizza with a glossy ketchup drizzle and green peppers.",
-      facts: [["Photos", "181 (3 heights)"], ["Splats", "98,769"], ["Size", "4.2 MB (phone 2.1)"], ["Cameras", "Agisoft Metashape"]],
-      notes: ["The ketchup gloss moves as you orbit, which a mesh texture cannot show."] },
     { id: "pizza-plain", label: "Medium pizza · plain", soon: true,
       lead: "Reference for the next capture: a medium pizza (about 30 cm) without ketchup, to show the cheese, crust and toppings on their own.",
       facts: [["Size", "about 30 cm across"], ["Photos", "about 188 planned"], ["Rings", "3 × 60 + 8 top-down"], ["Status", "Capturing"]],
@@ -222,7 +201,6 @@
     var b = document.createElement("button");
     b.type = "button"; b.className = "chip"; b.setAttribute("role", "tab"); b.id = "tab-" + m.id;
     b.textContent = m.label;
-    if (m.soon) { var s = document.createElement("span"); s.className = "soon"; s.textContent = "soon"; b.appendChild(s); }
     b.addEventListener("click", function () { show(m.id, true); });
     picker.appendChild(b);
     return b;
@@ -253,7 +231,7 @@
     if (push && history.replaceState) history.replaceState(null, "", "#" + m.id);
   }
 
-  show(location.hash.slice(1) || "cake", false);
+  show(location.hash.slice(1) || "pizza-plain", false);
   window.addEventListener("hashchange", function () { show(location.hash.slice(1), false); });
 </script>
 </body>
