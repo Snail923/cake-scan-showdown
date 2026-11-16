@@ -26,7 +26,6 @@
   .seg button { font: 600 15px/1 "IBM Plex Sans", system-ui, sans-serif; border: 0; border-radius: 999px; padding: 10px 16px; background: transparent; color: var(--ink); cursor: pointer; }
   .seg button[aria-pressed="true"] { background: var(--accent); color: var(--accent-ink); }
   #exit { position: fixed; top: calc(12px + env(safe-area-inset-top)); left: 12px; background: var(--scrim); color: var(--ink); padding: 10px 14px; }
-  #size { position: fixed; top: calc(12px + env(safe-area-inset-top)); right: 12px; background: var(--scrim); color: var(--ink); padding: 10px 14px; font-variant-numeric: tabular-nums; }
   #dbg { position: fixed; top: calc(60px + env(safe-area-inset-top)); left: 12px; right: 12px; margin: 0; padding: 6px 8px; border-radius: 8px; background: var(--scrim);
     font: 11px/1.35 "IBM Plex Mono", ui-monospace, monospace; white-space: pre-wrap; pointer-events: none; }
   #start-screen { position: fixed; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 16px; padding: 24px; text-align: center; }
@@ -56,7 +55,6 @@
 </div>
 
 <button class="btn" id="exit" type="button" hidden>✕ Close</button>
-<button class="btn" id="size" type="button" hidden title="Back to real size">100%</button>
 <pre id="dbg" hidden></pre>
 <div class="panel" id="panel" hidden>
   <span class="hint" id="hint">Move the phone slowly to find the table…</span>
@@ -77,7 +75,8 @@
   // metres); the splat is drawn by Spark into the same three.js scene. The model follows the table
   // under the middle of the screen and settles there by itself once the surface holds still (a tap
   // places it at once). Then one finger moves or rotates it (Move / Rotate switch), two fingers
-  // twist to rotate and pinch to resize, and Re-align hands it back to the automatic placement.
+  // twist to rotate, and Re-align hands it back to the automatic placement. The model always stays
+  // at its real size (the splats are scaled to the measured object, and tracking is in metres).
   // Test switches: ?debug=1 shows the camera, resolution and frame rate; ?lens=<label text> forces a
   // camera; ?cam=hd asks for 1920x1080; ?cam=engine leaves the camera choice to the engine;
   // ?rs=<0.5-3> fixes the render scale; ?pdb=1 restores the engine's preserveDrawingBuffer.
@@ -239,7 +238,7 @@
   const model = new THREE.Group();
   model.visible = false;
   let splat = null, footprint = 0.15, splatReady = false;
-  const target = { pos: new THREE.Vector3(), yaw: 0, scale: 1 };
+  const target = { pos: new THREE.Vector3(), yaw: 0 };
   let state = "searching";  // "searching": follows the table under the screen centre; "placed": stays put
 
   function blobTexture() {
@@ -262,16 +261,12 @@
   }
   sizeDecor();
 
-  function setScale(v) {
-    target.scale = Math.min(3, Math.max(0.25, v));
-    $("size").textContent = Math.round(target.scale * 100) + "%";
-  }
 
   function setState(next) {
     state = next;
     const placed = state === "placed";
-    $("tools").hidden = !placed; $("size").hidden = !placed;
-    if (placed) { hint.textContent = mode === "move" ? "Drag to move · twist to rotate · pinch to resize" : "Drag sideways to rotate · pinch to resize"; }
+    $("tools").hidden = !placed;
+    if (placed) { hint.textContent = mode === "move" ? "Drag to move · twist with two fingers to rotate" : "Drag sideways to rotate"; }
     else { samples.length = 0; stableSince = 0; ring.material.opacity = 0.9; hint.textContent = model.visible ? "Tap to place, or hold still" : "Move the phone slowly to find the table…"; }
   }
 
@@ -346,7 +341,7 @@
   // Gestures (pointer events, so touch and mouse both work):
   //   one finger, Move mode   - slides the model over the table, keeping the spot under the finger
   //   one finger, Rotate mode - turns it (a full screen width = three quarters of a turn)
-  //   two fingers             - twist to rotate, pinch to resize (25-300%)
+  //   two fingers             - twist to rotate (no pinch: the model stays at real size)
   //   a tap while placing     - places it at once
   let mode = "move", gesture = null, xr = null, downAt = 0;
   const pointers = new Map();
@@ -364,7 +359,7 @@
       }
     } else if (pts.length >= 2) {
       const [a, b] = pts;
-      gesture = { kind: 2, dist: Math.hypot(b.x - a.x, b.y - a.y), angle: Math.atan2(b.y - a.y, b.x - a.x), scale: target.scale, yaw: target.yaw, moved: true };
+      gesture = { kind: 2, angle: Math.atan2(b.y - a.y, b.x - a.x), yaw: target.yaw, moved: true };
     }
   }
   function moveGesture() {
@@ -384,7 +379,6 @@
       }
     } else if (gesture.kind === 2 && pts.length >= 2) {
       const [a, b] = pts;
-      setScale(gesture.scale * Math.hypot(b.x - a.x, b.y - a.y) / gesture.dist);
       target.yaw = gesture.yaw - (Math.atan2(b.y - a.y, b.x - a.x) - gesture.angle);
     }
   }
@@ -419,15 +413,13 @@
   $("mode-move").addEventListener("click", () => setMode("move"));
   $("mode-rotate").addEventListener("click", () => setMode("rotate"));
   $("realign").addEventListener("click", () => { searchStart = performance.now(); setState("searching"); });
-  $("size").addEventListener("click", () => setScale(1));
 
   // ---------------------------------------------------------------------------------------------
-  const ease = (from, to, k) => from + (to - from) * k;
   const easeAngle = (from, to, k) => { const d = Math.atan2(Math.sin(to - from), Math.cos(to - from)); return from + d * k; };
   window.__splatAr.state = () => {  // for tests
     const s = xr && xr.Threejs.xrScene();
     return { state, mode, visible: model.visible, ready: splatReady, footprint, pos: model.position.toArray(), target: target.pos.toArray(),
-      yaw: model.rotation.y, targetYaw: target.yaw, scale: target.scale, cam: s && s.camera.position.toArray(),
+      yaw: model.rotation.y, targetYaw: target.yaw, scale: model.scale.x, cam: s && s.camera.position.toArray(),
       buffer: s && s.renderer.getDrawingBufferSize(new THREE.Vector2()).toArray(), canvas: [canvas.width, canvas.height], renderScale, camInfo };
   };
   let lastFrame = 0;
@@ -465,7 +457,6 @@
           const k = 1 - Math.pow(state === "searching" ? 0.82 : 0.6, dt * 60);  // frame-rate independent easing
           model.position.lerp(target.pos, k);
           model.rotation.y = easeAngle(model.rotation.y, target.yaw, k);
-          model.scale.setScalar(ease(model.scale.x, target.scale, k));
           ring.visible = ring.material.opacity > 0.01;
           ring.material.opacity = state === "searching" ? 0.55 + 0.35 * Math.sin(now / 250) : Math.max(0, ring.material.opacity - dt * 3);
         }
