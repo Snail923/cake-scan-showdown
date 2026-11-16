@@ -16,7 +16,7 @@
   .panel { position: fixed; left: 16px; right: 16px; bottom: calc(22px + env(safe-area-inset-bottom)); display: flex; flex-direction: column; align-items: center; gap: 10px;
     pointer-events: none; }
   .panel > * { pointer-events: auto; }
-  .hint { display: inline-block; max-width: 420px; padding: 10px 14px; border-radius: 12px; background: var(--scrim); color: var(--ink); text-align: center; pointer-events: none !important; }
+  .hint { display: inline-block; max-width: 420px; white-space: pre-line; padding: 10px 14px; border-radius: 12px; background: var(--scrim); color: var(--ink); text-align: center; pointer-events: none !important; }
   .row { display: flex; gap: 10px; align-items: center; justify-content: center; flex-wrap: wrap; }
   .btn { font: 600 15px/1 "IBM Plex Sans", system-ui, sans-serif; border: 0; border-radius: 999px; padding: 13px 20px; cursor: pointer;
     background: var(--accent); color: var(--accent-ink); box-shadow: 0 4px 14px rgb(0 0 0 / .25); }
@@ -57,7 +57,7 @@
 <button class="btn" id="exit" type="button" hidden>✕ Close</button>
 <pre id="dbg" hidden></pre>
 <div class="panel" id="panel" hidden>
-  <span class="hint" id="hint">Move the phone slowly to find the table…</span>
+  <span class="hint" id="hint">Move the phone slowly side to side so it can measure the room…</span>
   <div class="row" id="tools" hidden>
     <div class="seg" role="group" aria-label="One-finger gesture">
       <button type="button" id="mode-move" aria-pressed="true">Move</button>
@@ -238,7 +238,7 @@
   // The group eases towards its target pose every frame, so hits and fingers move it smoothly.
   const model = new THREE.Group();
   model.visible = false;
-  let splat = null, footprint = 0.15, splatReady = false;
+  let splat = null, footprint = 0.15, splatReady = false, shapeShadow = null, fade = 1, realSizeText = "";
   const target = { pos: new THREE.Vector3(), yaw: 0 };
   let state = "searching";  // "searching": follows the table under the screen centre; "placed": stays put
 
@@ -267,15 +267,16 @@
     state = next;
     const placed = state === "placed";
     $("tools").hidden = !placed;
-    if (placed) { hint.textContent = mode === "move" ? "Drag to move · twist with two fingers to rotate" : "Drag sideways to rotate"; }
-    else { samples.length = 0; stableSince = 0; ring.material.opacity = 0.9; hint.textContent = model.visible ? "Tap to place, or hold still" : "Move the phone slowly to find the table…"; }
+    if (placed) { hint.textContent = (realSizeText ? "Real size · " + realSizeText + "\n" : "") + (mode === "move" ? "Drag to move · twist with two fingers to rotate" : "Drag sideways to rotate"); }
+    else { samples.length = 0; stableSince = 0; ring.material.opacity = 0.9; hint.textContent = model.visible ? "Tap to place, or hold still" : waitingHint(); }
   }
 
   // ---------------------------------------------------------------------------------------------
   // Surfaces. A tracked hit under a screen point, best type first. ESTIMATED_SURFACE is the engine's
   // guess at the floor, so it only counts when nothing better is there.
   const RANK = { DETECTED_SURFACE: 0, FEATURE_POINT: 1, ESTIMATED_SURFACE: 2 };
-  let lastHitType = "", tracking = "";
+  let lastHitType = "", tracking = "", trackingReason = "", normalSince = 0;
+  const waitingHint = () => tracking === "NORMAL" ? "Point the phone at the table…" : "Move the phone slowly side to side so it can measure the room…";
   // A table is below the phone and within reach: hits closer than 15 cm, further than 4 m or above the
   // phone are noise.
   function hitAt(XR8, x, y, types = ["DETECTED_SURFACE", "FEATURE_POINT", "ESTIMATED_SURFACE"]) {
@@ -298,29 +299,34 @@
   // Automatic alignment: follow the hit under the screen centre (a little below the middle, where a
   // table usually is), keep the front turned to the phone, and smooth the height with the median of the
   // recent hits. When the point has held within a couple of centimetres for 1.2 s, the model settles.
+  // Real size on arrival: the model only appears once tracking is NORMAL (the engine has fixed real-world
+  // scale in metres) and a real surface is under the screen centre. Shown earlier, it would sit at a
+  // guessed depth and look too big or too small even though its size in metres is right.
   const samples = [];
   let stableSince = 0, searchStart = 0;
   function autoAlign(XR8, camera, now) {
+    if (tracking !== "NORMAL" || !splatReady) return;
     let hit = hitAt(XR8, 0.5, 0.58);
-    if (hit && hit.type === "ESTIMATED_SURFACE" && samples.length) hit = null;  // don't jump to the floor guess once on a table
-    if (!hit && !model.visible && now - searchStart > 4000) {  // nothing tracked yet: hold it 40 cm below the phone
-      const p = planePoint(camera, innerWidth * 0.5, innerHeight * 0.58, camera.position.y - 0.4);
-      if (p) hit = { p, type: "GUESS" };
-    }
+    // ESTIMATED_SURFACE is the engine's guess at the floor: spawn on it only when nothing better has shown
+    // up for 3 s, and never jump to it from a table.
+    if (hit && hit.type === "ESTIMATED_SURFACE" && (samples.length || now - normalSince < 3000)) hit = null;
     if (!hit) return;
     lastHitType = hit.type;
     samples.push({ p: hit.p, t: now, solid: hit.type === "DETECTED_SURFACE" || hit.type === "FEATURE_POINT" });
-    while (samples.length && now - samples[0].t > 1200) samples.shift();
+    while (samples.length > 6 && now - samples[0].t > 1200) samples.shift();  // the last 1.2 s, and at least 6 hits on slow phones
     const ys = samples.map((s) => s.p.y).sort((a, b) => a - b);
     target.pos.set(hit.p.x, ys[ys.length >> 1], hit.p.z);
     target.yaw = faceYaw(camera, target.pos);
-    if (!model.visible) { model.position.copy(target.pos); model.rotation.y = target.yaw; model.visible = true; setState("searching"); }
+    if (!model.visible) {  // spawn in place, fading in at full (real) size
+      model.position.copy(target.pos); model.rotation.y = target.yaw; model.visible = true; fade = 0;
+      setState("searching");
+    }
     const dist = camera.position.distanceTo(target.pos);
     const tol = Math.max(0.015, 0.035 * dist);
-    const steady = samples.length > 8 && samples.every((s) => s.solid && s.p.distanceTo(target.pos) < tol) && tracking === "NORMAL";
+    const steady = samples.length >= 6 && samples.every((s) => s.solid && s.p.distanceTo(target.pos) < tol) && tracking === "NORMAL";
     if (!steady) stableSince = 0;
     else if (!stableSince) stableSince = now;
-    else if (now - stableSince > 1200 && now - searchStart > 1500 && splatReady) setState("placed");
+    else if (now - stableSince > 1200 && now - searchStart > 1500) setState("placed");
   }
 
   // Once placed, keep the model sitting on the table as tracking refines it: every half second, look
@@ -421,8 +427,46 @@
     const s = xr && xr.Threejs.xrScene();
     return { state, mode, visible: model.visible, ready: splatReady, footprint, pos: model.position.toArray(), target: target.pos.toArray(),
       yaw: model.rotation.y, targetYaw: target.yaw, scale: model.scale.x, cam: s && s.camera.position.toArray(),
-      buffer: s && s.renderer.getDrawingBufferSize(new THREE.Vector2()).toArray(), canvas: [canvas.width, canvas.height], renderScale, camInfo };
+      buffer: s && s.renderer.getDrawingBufferSize(new THREE.Vector2()).toArray(), canvas: [canvas.width, canvas.height], renderScale, camInfo,
+      samples: samples.map((p) => [+(p.t - performance.now()).toFixed(0), p.solid, +p.p.distanceTo(target.pos).toFixed(4)]), stableSince, tracking, fps: stats.fps };
   };
+  // Real-size check. The splats are converted to real size in metres (tools/splat_web.py scales the solid
+  // splats' 0.3-99.7 percentile box to the measured width, length or height), and the card passes that
+  // size as w / h. Measure the same box here; if it is 4-25% off what the card says, scale the model to
+  // match. Bigger gaps mean the card's numbers are wrong, so the file is left alone and a warning logged.
+  function measureSplat(sm) {
+    const X = [], Y = [], Z = [];
+    sm.forEachSplat((i, c, sc, quat, o) => { if (o > 0.05) { X.push(c.x); Y.push(c.y); Z.push(c.z); } });
+    const ext = (a) => { const b = Float32Array.from(a).sort(); return b[Math.floor(0.997 * (b.length - 1))] - b[Math.floor(0.003 * (b.length - 1))]; };
+    const x = ext(X), z = ext(Z);
+    return { mean: (x + z) / 2, max: Math.max(x, z), h: ext(Y) };
+  }
+  // Returns the scale to apply and the object's real size after it (the dimension the card names: its
+  // width or length "across", or its height "tall"), for the label.
+  function realSize(m) {
+    const dims = paramW ? [m.mean, m.max] : paramH ? [m.h] : [m.max];
+    const want = paramW || paramH;
+    const dim = want ? dims.reduce((a, b) => (Math.abs(Math.log(want / b)) < Math.abs(Math.log(want / a)) ? b : a)) : dims[0];
+    let fix = want && isFinite(want / dim) ? want / dim : 1;
+    if (Math.abs(fix - 1) <= 0.04) fix = 1;
+    else if (Math.abs(fix - 1) >= 0.25) { console.warn("[splat-ar] size on the card doesn't match the splat; left unscaled", m, paramW, paramH); fix = 1; }
+    return { fix, text: cm(dim * fix) + (paramH && !paramW ? " tall" : " across") };
+  }
+  const cm = (v) => (v < 0.1 ? (v * 100).toFixed(1).replace(/\.0$/, "") : Math.round(v * 100)) + " cm";
+
+  function onTracking({ status, reason }) {
+    const was = tracking;
+    tracking = status; trackingReason = reason || "";
+    if (status === "NORMAL" && was !== "NORMAL") normalSince = performance.now();
+    // Tracking that starts over (INITIALIZING) builds a new map with new coordinates and scale, so the
+    // model's spot is lost: hide it and find the table again.
+    if (status !== "NORMAL" && reason === "INITIALIZING" && model.visible) {
+      model.visible = false; searchStart = performance.now(); setState("searching");
+    }
+    if (state === "searching" && !model.visible) hint.textContent = waitingHint();
+  }
+  window.__splatAr.onTracking = onTracking;  // for tests
+
   let lastFrame = 0;
   function splatModule(XR8) {
     return {
@@ -436,16 +480,19 @@
         model.add(splat);
         scene.add(model);
         splat.initialized.then(() => {
-          // Size the shadow and ring from the card's width, or from the splat's own extent.
-          let w = paramW;
-          if (!w) { try { const b = splat.getBoundingBox(true); w = Math.max(b.max.x - b.min.x, b.max.z - b.min.z) * 0.85; } catch (e) {} }
-          footprint = Math.min(0.4, Math.max(0.04, (w || paramH || 0.3) / 2));
+          let m = null, fix = 1;
+          try { m = measureSplat(splat); const r = realSize(m); fix = r.fix; realSizeText = r.text; } catch (e) { console.warn(e); }
+          if (fix !== 1) splat.scale.setScalar(fix);
+          window.__splatAr.size = { measured: m, fix };
+          // The shadow and ring follow the object's real footprint.
+          footprint = Math.min(0.4, Math.max(0.04, ((m ? m.max * fix : 0) || paramW || paramH || 0.3) / 2));
           sizeDecor();
-          // Swap the round placeholder shadow for one shaped like the object.
+          // Swap the round placeholder shadow for one shaped like the object (a child of the splat, so it shares its scale).
           if (q.get("shadow") !== "0") {
-            try { const sh = makeSplatShadow(THREE, splat, { strength: 0.85 }); if (sh) { splat.add(sh); shadow.visible = false; } } catch (e) { console.warn(e); }
+            try { shapeShadow = makeSplatShadow(THREE, splat, { strength: 0.85 }); if (shapeShadow) { splat.add(shapeShadow); shadow.visible = false; } } catch (e) { console.warn(e); }
           }
           splatReady = true;
+          if (state === "searching" && !model.visible) hint.textContent = waitingHint();
         }).catch((e) => fail("Could not load the splat.", e));
         camera.position.set(0, 1.4, 0);
         XR8.XrController.updateCameraProjectionMatrix({ origin: camera.position, facing: camera.quaternion });
@@ -459,6 +506,11 @@
         const { camera } = XR8.Threejs.xrScene();
         if (state === "searching") autoAlign(XR8, camera, now); else refineHeight(XR8, camera, now);
         if (model.visible) {
+          if (fade < 1) {  // fade in over a third of a second after spawning
+            fade = Math.min(1, fade + dt / 0.35);
+            splat.opacity = fade;
+            if (shapeShadow) shapeShadow.material.opacity = fade;
+          }
           const k = 1 - Math.pow(state === "searching" ? 0.82 : 0.6, dt * 60);  // frame-rate independent easing
           model.position.lerp(target.pos, k);
           model.rotation.y = easeAngle(model.rotation.y, target.yaw, k);
@@ -469,15 +521,13 @@
           dbg.textContent = `camera: ${camInfo.label || "?"} ${camInfo.size}${camInfo.note ? " (" + camInfo.note + ")" : ""}\n` +
             `opened first: ${camInfo.env || "-"}\n` +
             `canvas ${canvas.width}×${canvas.height} (${renderScale.toFixed(2)}×) · ${stats.fps.toFixed(0)} fps\n` +
-            `tracking ${tracking || "-"} · ${state} · hit ${lastHitType || "-"}`;
+            `tracking ${tracking || "-"}${trackingReason ? " (" + trackingReason + ")" : ""} · ${state} · hit ${lastHitType || "-"}\n` +
+            `size ${realSizeText || "-"}${window.__splatAr.size && window.__splatAr.size.fix !== 1 ? " (corrected ×" + window.__splatAr.size.fix.toFixed(3) + ")" : ""}`;
         }
       },
       listeners: [{
         event: "reality.trackingstatus",
-        process: ({ detail }) => {
-          tracking = detail.status;
-          if (state === "searching" && !model.visible) hint.textContent = "Move the phone slowly to find the table…";
-        },
+        process: ({ detail }) => onTracking(detail),
       }],
     };
   }
