@@ -265,11 +265,19 @@
 
 
   function setState(next) {
+    if (next === "searching") return startSearch();
     state = next;
-    const placed = state === "placed";
-    $("tools").hidden = !placed;
-    if (placed) { hint.textContent = (realSizeText ? "Real size · " + realSizeText + "\n" : "") + (mode === "move" ? "Drag to move · twist with two fingers to rotate" : "Drag sideways to rotate"); }
-    else { samples.length = 0; stableSince = 0; ring.material.opacity = 0.9; hint.textContent = model.visible ? "Tap to place, or hold still" : waitingHint(); }
+    $("tools").hidden = false;
+    hint.textContent = (realSizeText ? "Real size · " + realSizeText + "\n" : "") + (mode === "move" ? "Drag to move · twist with two fingers to rotate" : "Drag sideways to rotate");
+  }
+  // Back to placing: nothing on screen until the table is found again.
+  function startSearch() {
+    state = "searching";
+    samples.length = 0; stableSince = 0; anchor = null;
+    model.visible = false; if (splat) splat.visible = false; shadow.visible = false;
+    ring.material.opacity = 0.9;
+    $("tools").hidden = true;
+    hint.textContent = waitingHint();
   }
 
   // ---------------------------------------------------------------------------------------------
@@ -297,52 +305,50 @@
   }
   const faceYaw = (camera, p) => Math.atan2(camera.position.x - p.x, camera.position.z - p.z);
 
-  // Automatic alignment: follow the hit under the screen centre (a little below the middle, where a
-  // table usually is), keep the front turned to the phone, and smooth the height with the median of the
-  // recent hits. When the point has held within a couple of centimetres for 1.2 s, the model settles.
-  // Real size on arrival: the model only appears once tracking is NORMAL (the engine has fixed real-world
-  // scale in metres) and a real surface is under the screen centre. Shown earlier, it would sit at a
-  // guessed depth and look too big or too small even though its size in metres is right.
+  // Placement, like AR Quick Look: while placing, only a ring shows where the model will go; once the
+  // table under the screen centre is steady, the model appears there at real size and stays put. After
+  // that it never follows the phone: only a finger moves it, or Re-align starts over.
+  // 8th Wall reports single tracked points, and from frame to frame the one under the screen centre comes
+  // from a different depth, so following the points made the model jump nearer and farther (and look
+  // smaller and bigger). Instead the table height is the mean of the recent hits' heights near their
+  // median (outliers ignored), and the spot is where the screen-centre ray meets that height, which holds
+  // still while the points jump. Placing starts once tracking has been NORMAL for 1 s, so the engine's
+  // real-world scale has settled; the model never shows at a guessed depth.
   const samples = [];
-  let stableSince = 0, searchStart = 0;
+  let stableSince = 0, searchStart = 0, anchor = null, tableLevel = null;
   function autoAlign(XR8, camera, now) {
-    if (tracking !== "NORMAL" || !splatReady) return;
+    if (tracking !== "NORMAL" || !splatReady || now - normalSince < 1000) return;
     let hit = hitAt(XR8, 0.5, 0.58);
-    // ESTIMATED_SURFACE is the engine's guess at the floor: spawn on it only when nothing better has shown
-    // up for 3 s, and never jump to it from a table.
+    // ESTIMATED_SURFACE is the engine's guess at the floor: use it only when nothing better shows up for 3 s.
     if (hit && hit.type === "ESTIMATED_SURFACE" && (samples.length || now - normalSince < 3000)) hit = null;
-    if (!hit) return;
-    lastHitType = hit.type;
-    samples.push({ p: hit.p, t: now, solid: hit.type === "DETECTED_SURFACE" || hit.type === "FEATURE_POINT" });
-    while (samples.length > 6 && now - samples[0].t > 1200) samples.shift();  // the last 1.2 s, and at least 6 hits on slow phones
-    const ys = samples.map((s) => s.p.y).sort((a, b) => a - b);
-    target.pos.set(hit.p.x, ys[ys.length >> 1], hit.p.z);
-    target.yaw = faceYaw(camera, target.pos);
-    if (!model.visible) {  // spawn in place, fading in at full (real) size
-      model.position.copy(target.pos); model.rotation.y = target.yaw; model.visible = true; fade = 0;
-      setState("searching");
+    if (hit) { lastHitType = hit.type; samples.push({ y: hit.p.y, t: now }); }
+    while (samples.length > 8 && now - samples[0].t > 1500) samples.shift();  // the last 1.5 s, at least 8 hits
+    if (samples.length < 5) return;
+    const ys = samples.map((v) => v.y).sort((a, b) => a - b), med = ys[ys.length >> 1];
+    const near = ys.filter((y) => Math.abs(y - med) < 0.03);
+    if (near.length < 0.7 * ys.length) { stableSince = 0; return; }  // the hits disagree: not a table yet
+    const level = near.reduce((a, b) => a + b, 0) / near.length;
+    if (level > camera.position.y - 0.1) return;  // a table is below the phone
+    const p = planePoint(camera, innerWidth * 0.5, innerHeight * 0.58, level);
+    if (!p || p.distanceTo(camera.position) > 2.5) return;
+    tableLevel = level;
+    target.pos.copy(p); target.yaw = faceYaw(camera, p);
+    if (!model.visible) {  // the ring appears on the table
+      model.position.copy(p); model.rotation.y = target.yaw; model.visible = true;
+      hint.textContent = "Hold still to place it here, or tap";
     }
-    const dist = camera.position.distanceTo(target.pos);
-    const tol = Math.max(0.015, 0.035 * dist);
-    const steady = samples.length >= 6 && samples.every((s) => s.solid && s.p.distanceTo(target.pos) < tol) && tracking === "NORMAL";
-    if (!steady) stableSince = 0;
-    else if (!stableSince) stableSince = now;
-    else if (now - stableSince > 1200 && now - searchStart > 1500) setState("placed");
+    // Steady: the spot has stayed within a couple of centimetres for 0.8 s.
+    const tol = Math.max(0.015, 0.03 * camera.position.distanceTo(p));
+    if (!anchor || p.distanceTo(anchor) > tol) { anchor = p.clone(); stableSince = now; }
+    else if (now - stableSince > 800) place();
   }
-
-  // Once placed, keep the model sitting on the table as tracking refines it: every half second, look
-  // for a detected surface right under the model and ease the height towards it.
-  let lastRefine = 0;
-  const proj = new THREE.Vector3();
-  function refineHeight(XR8, camera, now) {
-    if (now - lastRefine < 500 || gesture) return;
-    lastRefine = now;
-    proj.copy(target.pos).project(camera);
-    if (Math.abs(proj.x) > 0.9 || Math.abs(proj.y) > 0.9 || proj.z > 1) return;
-    const hit = hitAt(XR8, (proj.x + 1) / 2, (1 - proj.y) / 2, ["DETECTED_SURFACE"]);
-    if (!hit) return;
-    const dx = Math.hypot(hit.p.x - target.pos.x, hit.p.z - target.pos.z), dy = hit.p.y - target.pos.y;
-    if (dx < 0.15 && Math.abs(dy) < 0.06) target.pos.y += dy * 0.5;
+  // Put the model exactly on the ring's spot (no slide), fading in, and leave it there.
+  function place() {
+    if (state !== "searching" || !model.visible) return;
+    model.position.copy(target.pos); model.rotation.y = target.yaw;
+    splat.visible = true; fade = 0; splat.opacity = 0;
+    shadow.visible = !shapeShadow;
+    setState("placed");
   }
 
   // ---------------------------------------------------------------------------------------------
@@ -406,7 +412,7 @@
       if (!pointers.has(e.pointerId)) return;
       const g = gesture;
       pointers.delete(e.pointerId);
-      if (g && g.kind === 1 && !g.moved && !pointers.size && e.timeStamp - downAt < 500 && state === "searching" && model.visible && splatReady) setState("placed");
+      if (g && g.kind === 1 && !g.moved && !pointers.size && e.timeStamp - downAt < 500 && state === "searching" && model.visible && splatReady) place();
       if (pointers.size) beginGesture(); else gesture = null;  // re-anchor, so lifting one finger doesn't jump
     };
     canvas.addEventListener("pointerup", end);
@@ -426,10 +432,10 @@
   const easeAngle = (from, to, k) => { const d = Math.atan2(Math.sin(to - from), Math.cos(to - from)); return from + d * k; };
   window.__splatAr.state = () => {  // for tests
     const s = xr && xr.Threejs.xrScene();
-    return { state, mode, visible: model.visible, ready: splatReady, footprint, pos: model.position.toArray(), target: target.pos.toArray(),
+    return { state, mode, visible: model.visible, splatVisible: !!(splat && splat.visible), tableLevel, ready: splatReady, footprint, pos: model.position.toArray(), target: target.pos.toArray(),
       yaw: model.rotation.y, targetYaw: target.yaw, scale: model.scale.x, cam: s && s.camera.position.toArray(),
       buffer: s && s.renderer.getDrawingBufferSize(new THREE.Vector2()).toArray(), canvas: [canvas.width, canvas.height], renderScale, camInfo,
-      samples: samples.map((p) => [+(p.t - performance.now()).toFixed(0), p.solid, +p.p.distanceTo(target.pos).toFixed(4)]), stableSince, tracking, fps: stats.fps };
+      samples: samples.length, stableSince, tracking, fps: stats.fps };
   };
   // Real-size check (splat-size.js): scale the model to the card's w / h if it is 4-25% off, and label it.
   function onTracking({ status, reason }) {
@@ -438,8 +444,8 @@
     if (status === "NORMAL" && was !== "NORMAL") normalSince = performance.now();
     // Tracking that starts over (INITIALIZING) builds a new map with new coordinates and scale, so the
     // model's spot is lost: hide it and find the table again.
-    if (status !== "NORMAL" && reason === "INITIALIZING" && model.visible) {
-      model.visible = false; searchStart = performance.now(); setState("searching");
+    if (status !== "NORMAL" && reason === "INITIALIZING" && (model.visible || state === "placed")) {
+      searchStart = performance.now(); startSearch();
     }
     if (state === "searching" && !model.visible) hint.textContent = waitingHint();
   }
@@ -456,6 +462,7 @@
         scene.add(new SparkRenderer({ renderer, maxStdDev: 2.5, maxPixelRadius: 256 }));
         splat = new SplatMesh({ url: SRC_URL, fileType: "pcsogszip" });
         model.add(splat);
+        splat.visible = false; shadow.visible = false;  // only the ring shows until the model is placed
         scene.add(model);
         splat.initialized.then(() => {
           let m = null, fix = 1;
@@ -482,7 +489,7 @@
         lastFrame = now;
         trackFrameRate(now, model.visible);
         const { camera } = XR8.Threejs.xrScene();
-        if (state === "searching") autoAlign(XR8, camera, now); else refineHeight(XR8, camera, now);
+        if (state === "searching") autoAlign(XR8, camera, now);  // once placed, the model stays where it is
         if (model.visible) {
           if (fade < 1) {  // fade in over a third of a second after spawning
             fade = Math.min(1, fade + dt / 0.35);
