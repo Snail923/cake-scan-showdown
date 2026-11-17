@@ -82,7 +82,7 @@
   // GitHub Pages sends big files slowly (about 50 KB/s in Nov 2026 tests), so on the live site the splats come
   // from jsDelivr's mirror of the repo, pinned to a commit that has them. Bump the hash when a .sog changes.
   const ASSETS = location.hostname.endsWith("github.io")
-    ? "https://cdn.jsdelivr.net/gh/Snail923/cake-scan-showdown@0484c2f997435bbe69f74ef06c4951a9660da480/" : "";
+    ? "https://cdn.jsdelivr.net/gh/Snail923/cake-scan-showdown@95a0d2b1a3c638f5090cdb239a6e2016ab5bb45e/" : "";
   // jsDelivr refuses files once a repo version passes its 50 MB limit (403), so check first and fall back to
   // the copy on this site.
   async function splatUrl(file) {
