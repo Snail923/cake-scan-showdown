@@ -59,6 +59,7 @@
       <button type="button" id="ar-rotate" aria-pressed="false">Rotate</button>
     </div>
     <button type="button" id="ar-realign" class="ar-btn">Re-align</button>
+    <button type="button" id="ar-size" class="ar-btn" title="Back to real size">Real size</button>
   </div>
   <a id="ar8-btn" class="xr-link" target="_top" hidden>View on your table</a>
 </div>
@@ -163,11 +164,12 @@
   // middle of the screen, at real size, fading in with a ring around it; it follows that surface (height
   // steadied with the median of recent hits, front turned to the phone) and settles by itself once the
   // spot holds still for 1.2 s, or at once on a tap. Then one finger moves or rotates it (Move / Rotate
-  // switch), two fingers twist to rotate, and Re-align hands it back to the automatic placement. There is
-  // no pinch: the model stays at its real size.
+  // switch), two fingers twist to rotate and pinch to resize (25-300%), the size button shows the size and
+  // goes back to real size, and Re-align hands it back to the automatic placement. It always appears at real size.
   const overlay = document.getElementById("overlay"), hint = document.getElementById("ar-hint"), tools = document.getElementById("ar-tools");
   let xrSession = null, hitSource = null, arState = "searching", mode = "move", gesture = null, downAt = 0, fade = 1;
-  const arTarget = { pos: new THREE.Vector3(), yaw: 0 };
+  const arTarget = { pos: new THREE.Vector3(), yaw: 0, scale: 1 };  // scale: on top of the real size (baseScale)
+  const sizeBtn = document.getElementById("ar-size");
   const samples = [];
   let stableSince = 0, searchStart = 0, lastFrame = 0;
   const raycaster = new THREE.Raycaster();
@@ -182,9 +184,22 @@
     arState = next;
     const placed = next === "placed";
     tools.hidden = !placed;
-    if (placed) hint.textContent = (realSizeText ? "Real size · " + realSizeText + "\n" : "") + (mode === "move" ? "Drag to move · twist with two fingers to rotate" : "Drag sideways to rotate");
+    if (placed) placedHint();
     else { samples.length = 0; stableSince = 0; ring.material.opacity = 0.9; hint.textContent = splat.visible ? "Tap to place, or hold still" : "Point the phone at the table…"; }
   }
+  const atRealSize = () => Math.abs(arTarget.scale - 1) < 0.03;
+  function placedHint() {
+    const pct = Math.round(arTarget.scale * 100);
+    hint.textContent = (atRealSize() ? (realSizeText ? "Real size · " + realSizeText : "Real size") : pct + "% of real size") + "\n" +
+      (mode === "move" ? "Drag to move · twist to rotate · pinch to resize" : "Drag sideways to rotate · pinch to resize");
+  }
+  function setScale(v) {
+    arTarget.scale = Math.min(3, Math.max(0.25, v));
+    if (Math.abs(arTarget.scale - 1) < 0.03) arTarget.scale = 1;  // snap to real size
+    sizeBtn.textContent = atRealSize() ? "Real size" : Math.round(arTarget.scale * 100) + "% ↺";
+    if (arState === "placed") placedHint();
+  }
+  sizeBtn.addEventListener("click", () => setScale(1));
   function setMode(m) {
     mode = m;
     document.getElementById("ar-move").setAttribute("aria-pressed", String(m === "move"));
@@ -203,13 +218,14 @@
     return p && p.distanceTo(cam.getWorldPosition(new THREE.Vector3())) < 4 ? p : null;
   }
   const twoAngle = (t) => Math.atan2(t[1].clientY - t[0].clientY, t[1].clientX - t[0].clientX);
+  const twoDist = (t) => Math.max(1, Math.hypot(t[1].clientX - t[0].clientX, t[1].clientY - t[0].clientY));
   function beginGesture(touches, wasMoved) {
     gesture = null;
     if (touches.length === 1) {
       const t = touches[0];
       gesture = { kind: 1, x0: t.clientX, y0: t.clientY, moved: wasMoved, yaw: arTarget.yaw };
       if (arState === "placed" && mode === "move") { const p = tablePoint(t.clientX, t.clientY); gesture.grab = p && arTarget.pos.clone().sub(p); }
-    } else if (touches.length >= 2) gesture = { kind: 2, angle: twoAngle(touches), yaw: arTarget.yaw, moved: true };
+    } else if (touches.length >= 2) gesture = { kind: 2, angle: twoAngle(touches), dist: twoDist(touches), scale: arTarget.scale, yaw: arTarget.yaw, moved: true };
   }
   const onControl = (e) => e.target.closest && e.target.closest("button, a");
   overlay.addEventListener("touchstart", (e) => {
@@ -227,6 +243,7 @@
       else if (gesture.grab) { const p = tablePoint(t.clientX, t.clientY); if (p) { arTarget.pos.x = p.x + gesture.grab.x; arTarget.pos.z = p.z + gesture.grab.z; } }
     } else if (gesture.kind === 2 && e.touches.length >= 2 && arState === "placed") {
       arTarget.yaw = gesture.yaw - (twoAngle(e.touches) - gesture.angle);
+      setScale(gesture.scale * twoDist(e.touches) / gesture.dist);
     }
   }, { passive: true });
   overlay.addEventListener("touchend", (e) => {
@@ -241,7 +258,7 @@
     renderer.xr.setReferenceSpaceType("local-floor");
     await renderer.xr.setSession(xrSession);
     overlay.classList.add("ar-on");
-    splat.rotation.set(0, 0, 0); splat.scale.setScalar(baseScale); setMode("move");
+    splat.rotation.set(0, 0, 0); splat.scale.setScalar(baseScale); setScale(1); setMode("move");
     ring.scale.setScalar(footprint * 1.3);
     hint.hidden = false; searchStart = performance.now(); lastFrame = 0;
     try {
@@ -286,7 +303,7 @@
     else if (!stableSince) stableSince = now;
     else if (now - stableSince > 1200 && now - searchStart > 1500) setArState("placed");
   }
-  window.__splatView = { state: () => ({ arState, mode, visible: splat.visible, opacity: splat.opacity, scale: splat.scale.x, baseScale, realSizeText,
+  window.__splatView = { state: () => ({ arState, mode, visible: splat.visible, opacity: splat.opacity, scale: splat.scale.x, baseScale, arScale: arTarget.scale, realSizeText,
     pos: splat.position.toArray(), target: arTarget.pos.toArray(), yaw: splat.rotation.y, targetYaw: arTarget.yaw, ring: ring.visible }) };  // for tests
   function updateAr(frame) {
     const now = performance.now();
@@ -303,6 +320,9 @@
     splat.position.lerp(arTarget.pos, k);
     const d = Math.atan2(Math.sin(arTarget.yaw - splat.rotation.y), Math.cos(arTarget.yaw - splat.rotation.y));
     splat.rotation.y += d * k;
+    const sc = splat.scale.x / baseScale;
+    splat.scale.setScalar(baseScale * (sc + (arTarget.scale - sc) * k));
+    ring.scale.setScalar(footprint * 1.3 * splat.scale.x / baseScale);
     ring.position.set(splat.position.x, splat.position.y + 0.002, splat.position.z);
     ring.material.opacity = arState === "searching" ? 0.55 + 0.35 * Math.sin(now / 250) : Math.max(0, ring.material.opacity - dt * 3);
     ring.visible = ring.material.opacity > 0.01;

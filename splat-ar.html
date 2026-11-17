@@ -64,6 +64,7 @@
       <button type="button" id="mode-rotate" aria-pressed="false">Rotate</button>
     </div>
     <button class="btn ghost" id="realign" type="button">Re-align</button>
+    <button class="btn ghost" id="size" type="button" title="Back to real size">Real size</button>
   </div>
 </div>
 <p class="legal" id="legal" hidden>AR: XR Engine © 2026 Niantic Spatial, Inc. <a href="https://github.com/8thwall/engine/blob/main/LICENSE" target="_blank" rel="noopener">License</a></p>
@@ -75,8 +76,9 @@
   // metres); the splat is drawn by Spark into the same three.js scene. The model follows the table
   // under the middle of the screen and settles there by itself once the surface holds still (a tap
   // places it at once). Then one finger moves or rotates it (Move / Rotate switch), two fingers
-  // twist to rotate, and Re-align hands it back to the automatic placement. The model always stays
-  // at its real size (the splats are scaled to the measured object, and tracking is in metres).
+  // twist to rotate and pinch to resize (25-300%), and Re-align hands it back to the automatic
+  // placement. It always appears at real size (the splats are scaled to the measured object, and
+  // tracking is in metres); the size button shows the current size and goes back to real size.
   // Test switches: ?debug=1 shows the camera, resolution and frame rate; ?lens=<label text> forces a
   // camera; ?cam=hd asks for 1920x1080; ?cam=engine leaves the camera choice to the engine;
   // ?rs=<0.5-3> fixes the render scale; ?pdb=1 restores the engine's preserveDrawingBuffer.
@@ -241,7 +243,7 @@
   const model = new THREE.Group();
   model.visible = false;
   let splat = null, footprint = 0.15, splatReady = false, shapeShadow = null, fade = 1, realSizeText = "", slosh = null;
-  const target = { pos: new THREE.Vector3(), yaw: 0 };
+  const target = { pos: new THREE.Vector3(), yaw: 0, scale: 1 };  // scale: on top of the real size
   let state = "searching";  // "searching": follows the table under the screen centre; "placed": stays put
 
   function blobTexture() {
@@ -269,7 +271,18 @@
     if (next === "searching") return startSearch();
     state = next;
     $("tools").hidden = false;
-    hint.textContent = (realSizeText ? "Real size · " + realSizeText + "\n" : "") + (mode === "move" ? "Drag to move · twist with two fingers to rotate" : "Drag sideways to rotate");
+    placedHint();
+  }
+  const atRealSize = () => Math.abs(target.scale - 1) < 0.03;
+  function placedHint() {
+    hint.textContent = (atRealSize() ? (realSizeText ? "Real size · " + realSizeText : "Real size") : Math.round(target.scale * 100) + "% of real size") + "\n" +
+      (mode === "move" ? "Drag to move · twist to rotate · pinch to resize" : "Drag sideways to rotate · pinch to resize");
+  }
+  function setScale(v) {
+    target.scale = Math.min(3, Math.max(0.25, v));
+    if (Math.abs(target.scale - 1) < 0.03) target.scale = 1;  // snap to real size
+    $("size").textContent = atRealSize() ? "Real size" : Math.round(target.scale * 100) + "% ↺";
+    if (state === "placed") placedHint();
   }
   // Back to placing: nothing on screen until the table is found again.
   function startSearch() {
@@ -361,7 +374,7 @@
   // Gestures (pointer events, so touch and mouse both work):
   //   one finger, Move mode   - slides the model over the table, keeping the spot under the finger
   //   one finger, Rotate mode - turns it (a full screen width = three quarters of a turn)
-  //   two fingers             - twist to rotate (no pinch: the model stays at real size)
+  //   two fingers             - twist to rotate, pinch to resize (25-300%; the size button goes back to real size)
   //   a tap while placing     - places it at once
   let mode = "move", gesture = null, xr = null, downAt = 0;
   const pointers = new Map();
@@ -379,7 +392,7 @@
       }
     } else if (pts.length >= 2) {
       const [a, b] = pts;
-      gesture = { kind: 2, angle: Math.atan2(b.y - a.y, b.x - a.x), yaw: target.yaw, moved: true };
+      gesture = { kind: 2, angle: Math.atan2(b.y - a.y, b.x - a.x), dist: Math.max(1, Math.hypot(b.x - a.x, b.y - a.y)), scale: target.scale, yaw: target.yaw, moved: true };
     }
   }
   function moveGesture() {
@@ -400,6 +413,7 @@
     } else if (gesture.kind === 2 && pts.length >= 2) {
       const [a, b] = pts;
       target.yaw = gesture.yaw - (Math.atan2(b.y - a.y, b.x - a.x) - gesture.angle);
+      setScale(gesture.scale * Math.hypot(b.x - a.x, b.y - a.y) / gesture.dist);
     }
   }
   function attachGestures() {
@@ -433,6 +447,7 @@
   $("mode-move").addEventListener("click", () => setMode("move"));
   $("mode-rotate").addEventListener("click", () => setMode("rotate"));
   $("realign").addEventListener("click", () => { searchStart = performance.now(); setState("searching"); });
+  $("size").addEventListener("click", () => setScale(1));
 
   // ---------------------------------------------------------------------------------------------
   const easeAngle = (from, to, k) => { const d = Math.atan2(Math.sin(to - from), Math.cos(to - from)); return from + d * k; };
@@ -532,6 +547,7 @@
           const k = 1 - Math.pow(state === "searching" ? 0.82 : 0.6, dt * 60);  // frame-rate independent easing
           model.position.lerp(target.pos, k);
           model.rotation.y = easeAngle(model.rotation.y, target.yaw, k);
+          model.scale.setScalar(model.scale.x + (target.scale - model.scale.x) * k);
           ring.visible = ring.material.opacity > 0.01;
           ring.material.opacity = state === "searching" ? 0.55 + 0.35 * Math.sin(now / 250) : Math.max(0, ring.material.opacity - dt * 3);
         }
