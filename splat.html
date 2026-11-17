@@ -173,12 +173,22 @@
   // spot holds still for 1.2 s, or at once on a tap. Then one finger moves or rotates it (Move / Rotate
   // switch), two fingers twist to rotate and pinch to resize (25-300%), the size slider resizes it quickly and
   // its button goes back to real size, and Re-align hands it back to the automatic placement. It always
-  // appears at real size; while placing it shows as a see-through ghost where it will land.
+  // appears at real size. From the moment AR opens a see-through ghost floats in front of the phone; once a
+  // table is found it glides onto it, and turns solid when placed.
   const overlay = document.getElementById("overlay"), hint = document.getElementById("ar-hint"), tools = document.getElementById("ar-tools");
   let xrSession = null, hitSource = null, arState = "searching", mode = "move", gesture = null, downAt = 0, fade = 1;
   const arTarget = { pos: new THREE.Vector3(), yaw: 0, scale: 1 };  // scale: on top of the real size (baseScale)
   const sizeBtn = document.getElementById("ar-size"), sizer = document.getElementById("ar-sizer"), sizeSlider = document.getElementById("ar-size-slider");
   const GHOST = 0.35;
+  let floating = false;  // placing, no table found yet: the ghost floats in front of the phone
+  // A little below the screen centre and upright, at a distance that shows it at a comfortable size.
+  function floatGhost() {
+    const cam = xrCam(), cp = cam.getWorldPosition(new THREE.Vector3()), fwd = cam.getWorldDirection(new THREE.Vector3());
+    const sc = arTarget.scale, tall = height * sc, d = Math.min(1.6, Math.max(0.3, Math.max(tall, footprint * 2 * sc) / 0.4));
+    arTarget.pos.copy(cp).addScaledVector(fwd, d); arTarget.pos.y -= tall * 0.5;
+    arTarget.yaw = Math.atan2(cp.x - arTarget.pos.x, cp.z - arTarget.pos.z);
+    splat.position.copy(arTarget.pos); splat.rotation.set(0, arTarget.yaw, 0);
+  }
   const samples = [];
   let stableSince = 0, searchStart = 0, lastFrame = 0;
   const raycaster = new THREE.Raycaster();
@@ -194,7 +204,7 @@
     const placed = next === "placed";
     tools.hidden = !placed; sizer.hidden = !placed;
     if (placed) placedHint();
-    else { samples.length = 0; stableSince = 0; ring.material.opacity = 0.9; hint.textContent = splat.visible ? "Tap to place it here, or hold still" : "Point the phone at the table…"; }
+    else { samples.length = 0; stableSince = 0; ring.material.opacity = 0.9; hint.textContent = floating ? "Point the phone at a table…" : "Tap to place it here, or hold still"; }
   }
   const atRealSize = () => Math.abs(arTarget.scale - 1) < 0.03;
   function placedHint() {
@@ -260,7 +270,7 @@
   overlay.addEventListener("touchend", (e) => {
     if (!xrSession || !gesture) return;
     const g = gesture;
-    if (g.kind === 1 && !g.moved && !e.touches.length && e.timeStamp - downAt < 500 && arState === "searching" && splat.visible) setArState("placed");
+    if (g.kind === 1 && !g.moved && !e.touches.length && e.timeStamp - downAt < 500 && arState === "searching" && splat.visible && !floating) setArState("placed");
     if (e.touches.length) beginGesture(e.touches, true); else gesture = null;  // re-anchor, so lifting one finger doesn't jump
   }, { passive: true });
 
@@ -275,14 +285,14 @@
     try {
       const viewer = await xrSession.requestReferenceSpace("viewer");
       hitSource = await xrSession.requestHitTestSource({ space: viewer });
-      splat.visible = false;
+      floating = true; splat.visible = true; fade = 0; splat.opacity = 0;  // the ghost floats ahead until a table is found
     } catch (e) {  // no hit-test: stand it on the floor 80 cm ahead; a tap places it
       hitSource = null; splat.visible = true; arTarget.pos.set(0, 0, -0.8); arTarget.yaw = 0; splat.position.copy(arTarget.pos);
     }
     setArState("searching");
     xrBtn.textContent = "Exit AR";
     xrSession.addEventListener("end", () => {
-      xrSession = null; hitSource = null; gesture = null;
+      xrSession = null; hitSource = null; gesture = null; floating = false;
       overlay.classList.remove("ar-on"); hint.hidden = true; tools.hidden = true; sizer.hidden = true; ring.visible = false;
       splat.position.set(0, 0, 0); splat.rotation.set(0, 0, 0); splat.scale.setScalar(baseScale); splat.visible = true; splat.opacity = 1;
       if (shapeShadow) shapeShadow.material.opacity = 1;
@@ -304,8 +314,8 @@
     const ys = samples.map((s) => s.p.y).sort((a, b) => a - b);
     arTarget.pos.set(p.x, ys[ys.length >> 1], p.z);
     arTarget.yaw = Math.atan2(cam.x - p.x, cam.z - p.z);
-    if (!splat.visible) {  // spawn in place, fading in at real size
-      splat.position.copy(arTarget.pos); splat.rotation.y = arTarget.yaw; splat.visible = true; fade = 0;
+    if (floating) {  // a table: the floating ghost glides down onto it, with the ring under it
+      floating = false;
       setArState("searching");
     }
     const tol = Math.max(0.015, 0.035 * cam.distanceTo(arTarget.pos));
@@ -322,6 +332,7 @@
     lastFrame = now;
     if (frame) followSurface(frame, now);
     if (!splat.visible) { ring.visible = false; return; }
+    if (floating && arState === "searching") floatGhost();
     const goal = arState === "placed" ? 1 : GHOST;  // a see-through ghost while placing, solid once placed
     if (fade !== goal) {
       fade = fade < goal ? Math.min(goal, fade + dt / 0.35) : Math.max(goal, fade - dt / 0.25);
@@ -337,7 +348,7 @@
     ring.scale.setScalar(footprint * 1.3 * splat.scale.x / baseScale);
     ring.position.set(splat.position.x, splat.position.y + 0.002, splat.position.z);
     ring.material.opacity = arState === "searching" ? 0.55 + 0.35 * Math.sin(now / 250) : Math.max(0, ring.material.opacity - dt * 3);
-    ring.visible = ring.material.opacity > 0.01;
+    ring.visible = !floating && ring.material.opacity > 0.01;
   }
   xrBtn.addEventListener("click", () => {
     if (xrSession) xrSession.end();

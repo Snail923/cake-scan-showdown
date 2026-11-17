@@ -52,7 +52,7 @@
 
 <div id="start-screen">
   <h1>View on your table</h1>
-  <p>Allow camera and motion access when asked. Then point the phone at a table and move it slowly side to side for a few seconds.</p>
+  <p>Allow camera and motion access when asked, then point the phone at a table.</p>
   <button class="btn" id="start" type="button" disabled>Loading AR…</button>
   <p id="error" hidden></p>
 </div>
@@ -60,7 +60,7 @@
 <button class="btn" id="exit" type="button" hidden>✕ Close</button>
 <pre id="dbg" hidden></pre>
 <div class="panel" id="panel" hidden>
-  <span class="hint" id="hint">Move the phone slowly side to side so it can measure the room…</span>
+  <span class="hint" id="hint">Point the phone at a table…</span>
   <div class="row" id="tools" hidden>
     <div class="seg" role="group" aria-label="One-finger gesture">
       <button type="button" id="mode-move" aria-pressed="true">Move</button>
@@ -250,6 +250,7 @@
   const model = new THREE.Group();
   model.visible = false;
   let splat = null, footprint = 0.15, splatReady = false, shapeShadow = null, fade = 1, realSizeText = "", slosh = null;
+  let floating = true;  // placing, no table found yet: the ghost floats in front of the phone
   const target = { pos: new THREE.Vector3(), yaw: 0, scale: 1 };  // scale: on top of the real size
   let state = "searching";  // "searching": follows the table under the screen centre; "placed": stays put
 
@@ -296,8 +297,9 @@
   function startSearch() {
     state = "searching";
     samples.length = 0; stableSince = 0; anchor = null; held = null; reanchor = false;
-    model.visible = false; if (splat) splat.visible = false; shadow.visible = false;
-    ring.material.opacity = 0.9;
+    floating = true; fade = 0;  // the ghost floats in front of the phone until a table is found
+    model.visible = splatReady; if (splat) { splat.visible = splatReady; splat.opacity = 0; } shadow.visible = false;
+    ring.material.opacity = 0.9; ring.visible = false;
     $("tools").hidden = true; $("sizer").hidden = true;
     hint.textContent = waitingHint();
   }
@@ -307,7 +309,10 @@
   // guess at the floor, so it only counts when nothing better is there.
   const RANK = { DETECTED_SURFACE: 0, FEATURE_POINT: 1, ESTIMATED_SURFACE: 2 };
   let lastHitType = "", tracking = "", trackingReason = "", normalSince = 0;
-  const waitingHint = () => tracking === "NORMAL" ? "Point the phone at the table…" : "Move the phone slowly side to side so it can measure the room…";
+  // Like Android: just "point at a table". 8th Wall needs a little camera motion to start tracking, which
+  // usually happens while aiming; only if it hasn't started after 4 s does the hint ask for it.
+  const waitingHint = () => tracking !== "NORMAL" && performance.now() - searchStart > 4000
+    ? "Point the phone at a table\nand move it slowly side to side" : "Point the phone at a table…";
   // A table is below the phone and within reach: hits closer than 8 cm, further than 4 m or above the
   // phone are noise.
   function hitAt(XR8, x, y, types = ["DETECTED_SURFACE", "FEATURE_POINT", "ESTIMATED_SURFACE"]) {
@@ -361,9 +366,8 @@
     if (!p || p.distanceTo(camera.position) > 2.5) return;
     tableLevel = level;
     target.pos.copy(p); target.yaw = faceYaw(camera, p);
-    if (!model.visible) {  // the ghost and ring appear on the table
-      model.position.copy(p); model.rotation.y = target.yaw; model.visible = true;
-      splat.visible = true; fade = 0; splat.opacity = 0;
+    if (floating) {  // the floating ghost glides down onto the table, with the ring under it
+      floating = false; model.visible = true; splat.visible = true;
       hint.textContent = "Tap to place it here, or hold still";
     }
     // Steady: the spot has stayed within a couple of centimetres for 0.8 s.
@@ -373,7 +377,7 @@
   }
   // Put the model exactly on the ghost's spot (no slide), turning solid, and leave it there.
   function place() {
-    if (state !== "searching" || !model.visible) return;
+    if (state !== "searching" || !model.visible || floating) return;
     model.position.copy(target.pos); model.rotation.y = target.yaw;
     splat.visible = true;
     shadow.visible = !shapeShadow;
@@ -493,11 +497,23 @@
     // right in front of the phone); find the table again with the ghost, keeping the user's size.
     const restarted = status === "NORMAL" && held;
     if (restarted) startSearch();
-    if (state === "searching" && !model.visible) hint.textContent = restarted ? "Tracking reset · point at the table to put it back" : waitingHint();
+    if (state === "searching" && floating) hint.textContent = restarted ? "Tracking reset · point at the table to put it back" : waitingHint();
   }
   window.__splatAr.onTracking = onTracking;  // for tests
   let held = null, reanchor = false;
   const GHOST = 0.35;
+  // Before a table is found the ghost floats in front of the phone, a little below the screen centre and
+  // upright, at a distance that shows it at a comfortable size (about a third of the screen height).
+  const fwd = new THREE.Vector3();
+  function floatGhost(camera) {
+    const sc = target.scale, tall = (paramH || footprint * 2) * sc, size = Math.max(tall, footprint * 2 * sc);
+    const d = Math.min(1.6, Math.max(0.3, size / 0.4));
+    camera.getWorldDirection(fwd);
+    target.pos.copy(camera.position).addScaledVector(fwd, d); target.pos.y -= tall * 0.5;
+    target.yaw = faceYaw(camera, target.pos);
+    model.position.copy(target.pos); model.rotation.set(0, target.yaw, 0);
+    const h = waitingHint(); if (hint.textContent !== h && !hint.textContent.startsWith("Tracking reset")) hint.textContent = h;
+  }
   const holdM = new THREE.Matrix4(), holdQ = new THREE.Quaternion(), holdS = new THREE.Vector3(), holdE = new THREE.Euler(0, 0, 0, "YXZ");
   // While tracking restarts: the model follows the phone. When it's back: pin it upright where it now appears.
   function holdToCamera(camera) {
@@ -541,7 +557,7 @@
           // ?liquid=1: the juice sloshes when the glass is moved, twisted or walked around (splat-slosh.js)
           if (q.get("liquid") === "1") { try { slosh = makeSlosh(THREE, dyno, splat, { glint: q.get("glass") === "1" }); } catch (e) { console.warn(e); } }
           splatReady = true;
-          if (state === "searching" && !model.visible) hint.textContent = waitingHint();
+          if (state === "searching" && floating) { model.visible = true; splat.visible = true; fade = 0; splat.opacity = 0; hint.textContent = waitingHint(); }
         }).catch((e) => fail("Could not load the splat.", e));
         camera.position.set(0, 1.4, 0);
         XR8.XrController.updateCameraProjectionMatrix({ origin: camera.position, facing: camera.quaternion });
@@ -554,6 +570,7 @@
         trackFrameRate(now, model.visible);
         const { camera } = XR8.Threejs.xrScene();
         if (state === "searching") autoAlign(XR8, camera, now);  // once placed, the model stays where it is
+        if (state === "searching" && floating && model.visible) floatGhost(camera);
         if (model.visible && splat) {
           // a ghost (35%) while placing or held through a tracking restart, solid once placed
           const goal = state === "placed" && !held ? 1 : GHOST;
@@ -570,7 +587,7 @@
           model.position.lerp(target.pos, k);
           model.rotation.y = easeAngle(model.rotation.y, target.yaw, k);
           model.scale.setScalar(model.scale.x + (target.scale - model.scale.x) * k);
-          ring.visible = ring.material.opacity > 0.01;
+          ring.visible = !floating && ring.material.opacity > 0.01;
           ring.material.opacity = state === "searching" ? 0.55 + 0.35 * Math.sin(now / 250) : Math.max(0, ring.material.opacity - dt * 3);
         }
         if (slosh && model.visible) slosh.update(camera);
