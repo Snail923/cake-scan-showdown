@@ -4,13 +4,18 @@
 // glass of this size) driven by how the glass moves relative to the viewer: turning it (orbiting, or the AR
 // twist), moving it, or walking around it in AR. A short slosh plays on load so the liquid reads as liquid.
 // Splats only move up and down, so the juice stays inside the glass, and only below the rim.
+// With { glint: true } the glass also gets live reflections: wall splats pick up a sharp white highlight from
+// two lights placed relative to the viewer (on a cylinder that is a vertical streak that slides as you orbit,
+// like a window reflected in a real glass) and a soft bright rim where the wall is seen edge-on (Fresnel).
 //   const slosh = makeSlosh(THREE, dyno, splatMesh);   // after splatMesh.initialized; null if no liquid found
 //   slosh.update(camera);                              // every frame, before rendering
-export function makeSlosh(THREE, dyno, splat, { color = isJuice, gain = 1, startNudge = true } = {}) {
-  // 1. Find the liquid: solid, dark, strongly red splats (local space of the splat mesh).
-  const xs = [], ys = [], zs = [];
+export function makeSlosh(THREE, dyno, splat, { color = isJuice, gain = 1, startNudge = true, glint = false,
+  spec = 0.85, rim = 0.28, taper = 0.0926 } = {}) {
+  // 1. Find the liquid: solid, dark, strongly red splats (local space of the splat mesh), and the glass top.
+  const xs = [], ys = [], zs = [], all = [];
   splat.forEachSplat((i, c, s, q, opacity, rgb) => {
     if (opacity > 0.15 && color(rgb)) { xs.push(c.x); ys.push(c.y); zs.push(c.z); }
+    if (opacity > 0.05 && (i & 3) === 0) all.push(c.y);
   });
   if (xs.length < 200) return null;
   const pct = (arr, p) => { const a = Float32Array.from(arr).sort(); return a[Math.min(a.length - 1, Math.floor(p * a.length))]; };
@@ -18,6 +23,7 @@ export function makeSlosh(THREE, dyno, splat, { color = isJuice, gain = 1, start
   const bottom = pct(ys, 0.02), top = pct(ys, 0.985), depth = top - bottom;
   const rTop = pct(xs.map((x, i) => (ys[i] > top - depth * 0.2 ? Math.hypot(x - ax, zs[i] - az) : 0)).filter((r) => r > 0), 0.95);
   if (!(depth > 0) || !(rTop > 0)) return null;
+  const glassTop = pct(all, 0.995);
 
   // 2. GPU modifier: centre.y += w * (surface slope . (x, z) + ripple), w rises from the bottom, the upper
   //    part of the juice moves as one (no seams), and w fades out just above the surface, so the glass rim
@@ -25,11 +31,15 @@ export function makeSlosh(THREE, dyno, splat, { color = isJuice, gain = 1, start
   const geo = dyno.dynoVec4(new THREE.Vector4(ax, az, bottom, top));
   const geo2 = dyno.dynoVec4(new THREE.Vector4(rTop, (2 * Math.PI) / (rTop * 0.9), 0, 0));
   const wave = dyno.dynoVec4(new THREE.Vector4(0, 0, 0, 0));  // slope x, slope z, ripple amplitude, ripple phase
+  // glass: wall taper (radius per height), glass top, rim (Fresnel) and highlight strength (0 = off)
+  const glass = dyno.dynoVec4(new THREE.Vector4(taper, glassTop, glint ? rim : 0, glint ? spec : 0));
+  const cam = dyno.dynoVec4(new THREE.Vector4(0, 1, 1, 0));  // viewer position, local space
+  const l1 = dyno.dynoVec4(new THREE.Vector4(0, 0, 1, 0)), l2 = dyno.dynoVec4(new THREE.Vector4(0, 0, 1, 0));
   splat.objectModifier = dyno.dynoBlock({ gsplat: dyno.Gsplat }, { gsplat: dyno.Gsplat }, ({ gsplat }) => {
     const d = dyno.dyno({
-      inTypes: { gsplat: dyno.Gsplat, geo: "vec4", geo2: "vec4", wave: "vec4" },
+      inTypes: { gsplat: dyno.Gsplat, geo: "vec4", geo2: "vec4", wave: "vec4", glass: "vec4", cam: "vec4", l1: "vec4", l2: "vec4" },
       outTypes: { gsplat: dyno.Gsplat },
-      inputs: { gsplat, geo, geo2, wave },
+      inputs: { gsplat, geo, geo2, wave, glass, cam, l1, l2 },
       globals: () => [dyno.defineGsplat],
       statements: ({ inputs, outputs }) => {
         const g = outputs.gsplat, i = inputs;
@@ -43,6 +53,28 @@ export function makeSlosh(THREE, dyno, splat, { color = isJuice, gain = 1, start
           `  float r = length(q);`,
           `  float inside = 1.0 - smoothstep(${i.geo2}.x * 1.08, ${i.geo2}.x * 1.3, r);`,
           `  float ripple = ${i.wave}.z * sin(r * ${i.geo2}.y - ${i.wave}.w) * smoothstep(0.7, 1.0, f);`,
+          `  if (${i.glass}.z + ${i.glass}.w > 0.0) {`,
+          `    float rw = ${i.geo2}.x + (${g}.center.y - ${i.geo}.w) * ${i.glass}.x;`,
+          `    float wall = smoothstep(0.82 * rw, 0.96 * rw, r) * (1.0 - smoothstep(1.1 * rw, 1.3 * rw, r))`,
+          `      * (1.0 - smoothstep(${i.glass}.y, ${i.glass}.y + 0.004, ${g}.center.y));`,
+          `    if (wall > 0.001) {`,
+          `      vec3 N = vec3(q.x, 0.0, q.y) / max(r, 1e-5);`,
+          `      vec3 V = normalize(${i.cam}.xyz - ${g}.center);`,
+          // lights are tall (like windows): only the horizontal angles count, so each makes a full-height streak
+          `      vec2 vh = normalize(V.xz), nh = N.xz;`,
+          `      vec2 r1 = reflect(-normalize(${i.l1}.xz), nh), r2 = reflect(-normalize(${i.l2}.xz), nh);`,
+          `      float sp = pow(max(dot(r1, vh), 0.0), 220.0) + 0.6 * pow(max(dot(r2, vh), 0.0), 320.0);`,
+          // edge glow; half as strong along the top centimetre, where the rim is seen edge-on from above
+          `      float fr = pow(1.0 - abs(dot(N, V)), 4.0) * (1.0 - 0.5 * smoothstep(${i.glass}.y - 0.01, ${i.glass}.y - 0.003, ${g}.center.y));`,
+          // long thin splats would light up as star-shaped sparkles: keep them out of the highlight
+          `      vec3 sc = ${g}.scales;`,
+          `      float smax = max(sc.x, max(sc.y, sc.z)), smin = min(sc.x, min(sc.y, sc.z));`,
+          `      float elong = smax / max(sc.x + sc.y + sc.z - smax - smin, 1e-7);`,
+          `      float add = wall * (1.0 - smoothstep(2.5, 6.0, elong)) * (${i.glass}.w * sp + ${i.glass}.z * fr);`,
+          `      ${g}.rgba.rgb += vec3(add);`,
+          `      ${g}.rgba.a = clamp(${g}.rgba.a + add * 0.3, 0.0, 0.95);`,
+          `    }`,
+          `  }`,
           `  ${g}.center.y += smoothstep(0.15, 0.8, f) * fade * inside * (dot(q, ${i.wave}.xy) + ripple);`,
           `}`,
         ];
@@ -60,9 +92,15 @@ export function makeSlosh(THREE, dyno, splat, { color = isJuice, gain = 1, start
   const rel = new THREE.Matrix4(), inv = new THREE.Matrix4(), qRel = new THREE.Quaternion(), qLast = new THREE.Quaternion();
   const pRel = new THREE.Vector3(), tmpQ = new THREE.Quaternion(), w = new THREE.Vector3(), alpha = new THREE.Vector3();
   const front = new THREE.Vector3(), acc = new THREE.Vector3(), vel = new THREE.Vector3(), worldScale = new THREE.Vector3();
+  const camLocal = new THREE.Vector3(), lastCam = new THREE.Vector3(Infinity, 0, 0), toCam = new THREE.Vector3();
+  const UP = new THREE.Vector3(0, 1, 0), dir = new THREE.Vector3();
+  const lightAround = (out, yaw, up) => {  // the direction to the viewer, turned by yaw and raised by up (radians)
+    dir.copy(toCam).applyAxisAngle(UP, yaw).setY(0).normalize().multiplyScalar(Math.cos(up)).setY(Math.sin(up));
+    out.set(dir.x, dir.y, dir.z, 0);
+  };
 
   return {
-    geometry: { axis: [ax, az], bottom, top, radius: rTop, splats: xs.length },
+    geometry: { axis: [ax, az], bottom, top, radius: rTop, glassTop, splats: xs.length },
     nudge(x = 0.8, z = 0.3) { v.x += x; v.y += z; moving = true; },
     state: () => ({ slope: [s.x, s.y], speed: [v.x, v.y] }),
     update(camera) {
@@ -104,7 +142,21 @@ export function makeSlosh(THREE, dyno, splat, { color = isJuice, gain = 1, start
       const energy = Math.hypot(s.x, s.y) + Math.hypot(v.x, v.y) / W0;
       phase += dt * 2 * Math.PI * 3.2;
       const active = energy > 0.002;
-      if (active || moving) {
+      // reflections: viewer position in the glass's space, two lights to the viewer's upper left and right
+      let viewMoved = false;
+      if (glint) {
+        camLocal.setFromMatrixPosition(camera.matrixWorld);
+        splat.worldToLocal(camLocal);
+        viewMoved = camLocal.distanceToSquared(lastCam) > 1e-10;
+        if (viewMoved) {
+          lastCam.copy(camLocal);
+          cam.value.set(camLocal.x, camLocal.y, camLocal.z, 0);
+          toCam.set(camLocal.x - ax, 0, camLocal.z - az);
+          if (toCam.lengthSq() < 1e-10) toCam.set(0, 0, 1);
+          lightAround(l1.value, 0.42, 0.35); lightAround(l2.value, -0.75, 0.5);
+        }
+      }
+      if (active || moving || viewMoved) {
         wave.value.set(s.x, s.y, active ? Math.min(0.25, energy) * rTop * 0.18 : 0, phase);
         splat.updateVersion();
       }

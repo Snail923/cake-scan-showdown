@@ -140,7 +140,7 @@
     } catch (e) { console.warn(e); }
     if (q.get("shadow") !== "0") { try { shapeShadow = makeSplatShadow(THREE, splat); if (shapeShadow) splat.add(shapeShadow); } catch (e) { console.warn(e); } }
     // ?liquid=1: the juice moves like a liquid when the glass is turned or moved (splat-slosh.js)
-    if (q.get("liquid") === "1") { try { slosh = makeSlosh(THREE, dyno, splat); window.__slosh = slosh; } catch (e) { console.warn(e); } }
+    if (q.get("liquid") === "1") { try { slosh = makeSlosh(THREE, dyno, splat, { glint: q.get("glass") === "1" }); window.__slosh = slosh; } catch (e) { console.warn(e); } }
     splatReady = true;
   })
     .catch((e) => { msg.textContent = "Could not load the splat"; console.error(e); });

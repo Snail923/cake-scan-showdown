@@ -521,7 +521,7 @@
             try { shapeShadow = makeSplatShadow(THREE, splat, { strength: 0.85 }); if (shapeShadow) { splat.add(shapeShadow); shadow.visible = false; } } catch (e) { console.warn(e); }
           }
           // ?liquid=1: the juice sloshes when the glass is moved, twisted or walked around (splat-slosh.js)
-          if (q.get("liquid") === "1") { try { slosh = makeSlosh(THREE, dyno, splat); } catch (e) { console.warn(e); } }
+          if (q.get("liquid") === "1") { try { slosh = makeSlosh(THREE, dyno, splat, { glint: q.get("glass") === "1" }); } catch (e) { console.warn(e); } }
           splatReady = true;
           if (state === "searching" && !model.visible) hint.textContent = waitingHint();
         }).catch((e) => fail("Could not load the splat.", e));
