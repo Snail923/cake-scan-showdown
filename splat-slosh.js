@@ -7,6 +7,7 @@
 // With { glint: true } the glass also gets live reflections: wall splats pick up a sharp white highlight from
 // two lights placed relative to the viewer (on a cylinder that is a vertical streak that slides as you orbit,
 // like a window reflected in a real glass) and a soft bright rim where the wall is seen edge-on (Fresnel).
+// Both are full strength on the empty glass above the juice and only a faint trace over the juice.
 //   const slosh = makeSlosh(THREE, dyno, splatMesh);   // after splatMesh.initialized; null if no liquid found
 //   slosh.update(camera);                              // every frame, before rendering
 export function makeSlosh(THREE, dyno, splat, { color = isJuice, gain = 1, startNudge = true, glint = false,
@@ -70,7 +71,9 @@ export function makeSlosh(THREE, dyno, splat, { color = isJuice, gain = 1, start
           `      vec3 sc = ${g}.scales;`,
           `      float smax = max(sc.x, max(sc.y, sc.z)), smin = min(sc.x, min(sc.y, sc.z));`,
           `      float elong = smax / max(sc.x + sc.y + sc.z - smax - smin, 1e-7);`,
-          `      float add = wall * (1.0 - smoothstep(2.5, 6.0, elong)) * (${i.glass}.w * sp + ${i.glass}.z * fr);`,
+          // reflections belong to the empty glass above the juice; over the juice only a faint trace
+          `      float upper = mix(0.12, 1.7, smoothstep(${i.geo}.w - 0.004, ${i.geo}.w + 0.012, ${g}.center.y));`,
+          `      float add = wall * (1.0 - smoothstep(2.5, 6.0, elong)) * (${i.glass}.w * sp * upper + ${i.glass}.z * fr * mix(0.5, 1.0, min(upper, 1.0)));`,
           `      ${g}.rgba.rgb += vec3(add);`,
           `      ${g}.rgba.a = clamp(${g}.rgba.a + add * 0.3, 0.0, 0.95);`,
           `    }`,
