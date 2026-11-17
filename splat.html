@@ -69,8 +69,9 @@
   // (Chrome on Android); other phones (iPhone Safari) open splat-ar.html, which tracks with 8th Wall's engine.
   import * as THREE from "three";
   import { OrbitControls } from "three/addons/controls/OrbitControls.js";
-  import { SparkRenderer, SplatMesh } from "@sparkjsdev/spark";
+  import { SparkRenderer, SplatMesh, dyno } from "@sparkjsdev/spark";
   import { makeSplatShadow } from "./splat-shadow.js";
+  import { makeSlosh } from "./splat-slosh.js";
   import { measureSplat, realSize } from "./splat-size.js";
 
   const q = new URLSearchParams(location.search);
@@ -127,7 +128,7 @@
   // the label for AR. Then a soft shadow shaped like the object, as a child of the splat so it follows it
   // in AR too (?shadow=0 turns it off).
   const paramW = parseFloat(q.get("w") || "0"), paramH = parseFloat(q.get("h") || "0");
-  let baseScale = 1, realSizeText = "", footprint = size / 2, shapeShadow = null, splatReady = false;
+  let baseScale = 1, realSizeText = "", footprint = size / 2, shapeShadow = null, splatReady = false, slosh = null;
   splat.initialized.then(() => {
     msg.hidden = true;
     try {
@@ -137,6 +138,8 @@
       footprint = Math.min(0.4, Math.max(0.04, m.max * baseScale / 2));
     } catch (e) { console.warn(e); }
     if (q.get("shadow") !== "0") { try { shapeShadow = makeSplatShadow(THREE, splat); if (shapeShadow) splat.add(shapeShadow); } catch (e) { console.warn(e); } }
+    // ?liquid=1: the juice moves like a liquid when the glass is turned or moved (splat-slosh.js)
+    if (q.get("liquid") === "1") { try { slosh = makeSlosh(THREE, dyno, splat); window.__slosh = slosh; } catch (e) { console.warn(e); } }
     splatReady = true;
   })
     .catch((e) => { msg.textContent = "Could not load the splat"; console.error(e); });
@@ -320,6 +323,7 @@
       controls.update();
     }
     else updateAr(frame);
+    if (slosh) slosh.update(renderer.xr.isPresenting ? renderer.xr.getCamera() : camera);
     renderer.render(scene, camera);
   });
 </script>
