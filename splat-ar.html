@@ -296,7 +296,7 @@
   // Back to placing: nothing on screen until the table is found again.
   function startSearch() {
     state = "searching";
-    samples.length = 0; stableSince = 0; anchor = null; held = null; reanchor = false;
+    samples.length = 0; stableSince = 0; anchor = null; held = null; reanchor = false; tableLevel = null;
     floating = true; fade = 0; model.userData.floated = false;  // the ghost floats in front of the phone until a table is found
     model.visible = splatReady; if (splat) { splat.visible = splatReady; splat.opacity = 0; } shadow.visible = false;
     ring.material.opacity = 0.9;
@@ -340,27 +340,50 @@
   // from a different depth, so following the points made the model jump nearer and farther (and look
   // smaller and bigger). Instead the table height is the mean of the recent hits' heights near their
   // median (outliers ignored), and the spot is where the screen-centre ray meets that height, which holds
-  // still while the points jump. Placing starts once tracking has been NORMAL for 1 s, so the engine's
-  // real-world scale has settled; the model never shows at a guessed depth.
+  // still while the points jump. Placing starts 0.3 s after tracking is NORMAL; the model never shows at a
+  // guessed depth (until then it is the floating ghost).
   const samples = [];
-  let stableSince = 0, searchStart = 0, anchor = null, tableLevel = null;
-  const SEARCH_RAYS = [[0.5, 0.58], [0.38, 0.52], [0.62, 0.52], [0.38, 0.66], [0.62, 0.66], [0.5, 0.45], [0.5, 0.72]];
+  let stableSince = 0, searchStart = 0, anchor = null, tableLevel = null, steadyFrames = 0;
+  // Rays: 7 around the screen centre (under the ring, where the user aims) every frame, plus a 5x5 grid over
+  // the lower-middle of the screen, a third of it each frame. On a plain table tracked points are sparse, so
+  // the more of the view we ask, the sooner some land on it.
+  const CENTRE_RAYS = [[0.5, 0.58], [0.44, 0.54], [0.56, 0.54], [0.44, 0.63], [0.56, 0.63], [0.5, 0.5], [0.5, 0.67]];
+  const SEARCH_GRID = [];
+  for (const ry of [0.42, 0.52, 0.6, 0.7, 0.8]) for (const rx of [0.25, 0.375, 0.5, 0.625, 0.75]) SEARCH_GRID.push([rx, ry]);
+  let gridTurn = 0;
   function autoAlign(XR8, camera, now) {
-    if (tracking !== "NORMAL" || !splatReady || now - normalSince < 1000) return;
-    // Tracked points are sparse close up, so look along several rays around the screen centre, not just one:
-    // any of them that meets the table tells us its height.
-    for (const [rx, ry] of SEARCH_RAYS) {
+    if (tracking !== "NORMAL" || !splatReady || now - normalSince < 300) return;
+    const rays = CENTRE_RAYS.map((r) => [r[0], r[1], true]);
+    for (let k = gridTurn % 3; k < SEARCH_GRID.length; k += 3) rays.push([SEARCH_GRID[k][0], SEARCH_GRID[k][1], false]);
+    for (const [rx, ry, centre] of rays) {
       let hit = hitAt(XR8, rx, ry);
-      // ESTIMATED_SURFACE is the engine's guess at the floor: use it only when nothing better shows up for 3 s.
-      if (hit && hit.type === "ESTIMATED_SURFACE" && (samples.length || now - normalSince < 3000)) hit = null;
-      if (hit) { lastHitType = hit.type; samples.push({ y: hit.p.y, t: now }); }
+      // ESTIMATED_SURFACE is the engine's guess at the floor: use it only when nothing better shows up for 4 s.
+      if (hit && hit.type === "ESTIMATED_SURFACE" && (samples.length || now - normalSince < 4000)) hit = null;
+      // a surface the engine has detected counts as three points
+      if (hit) { lastHitType = hit.type; samples.push({ y: hit.p.y, t: now, w: hit.type === "DETECTED_SURFACE" ? 3 : 1, c: centre }); }
     }
-    while (samples.length > 8 && now - samples[0].t > 1500) samples.shift();  // the last 1.5 s, at least 8 hits
-    if (samples.length < 3) return;  // a few agreeing hits are enough for the ghost; it refines as more come
-    const ys = samples.map((v) => v.y).sort((a, b) => a - b), med = ys[ys.length >> 1];
-    const near = ys.filter((y) => Math.abs(y - med) < 0.03);
-    if (near.length < 0.7 * ys.length) { stableSince = 0; return; }  // the hits disagree: not a table yet
-    const level = near.reduce((a, b) => a + b, 0) / near.length;
+    gridTurn++;
+    // the last 3 s of hits (at least the last 60, so a slow phone still has enough), at most 400
+    while (samples.length > 60 && (now - samples[0].t > 3000 || samples.length > 400)) samples.shift();
+    // The table is the surface under the ring, where the user aims: the densest 3 cm band of heights among the
+    // hits near the screen centre picks it (two or three agreeing hits are enough), then every hit in the view
+    // within that band refines its height. The floor, the table edge or things on the table elsewhere in the
+    // view don't get a say (before, 70% of all hits had to agree, so a view with table and floor never settled).
+    const below = samples.filter((v) => v.y < camera.position.y - 0.1);
+    const central = below.filter((v) => v.c).sort((a, b) => a.y - b.y);
+    let best = 0, bi = 0, bj = 0, wsum = 0;
+    for (let i = 0, j = 0; j < central.length; j++) {
+      wsum += central[j].w;
+      while (central[j].y - central[i].y > 0.03) wsum -= central[i++].w;
+      if (wsum > best) { best = wsum; bi = i; bj = j; }
+    }
+    window.__splatAr.band = { best, y: central.length ? central[bi].y : null, n: samples.length };  // for tests
+    if (best < 2) return;  // two agreeing hits under the ring (or one detected surface)
+    const mid = (central[bi].y + central[bj].y) / 2;
+    const near = below.filter((v) => Math.abs(v.y - mid) < 0.02).map((v) => v.y);
+    let level = near.reduce((a, b) => a + b, 0) / near.length;
+    // once found, the table height only drifts slowly, so the ghost holds still and can settle
+    if (tableLevel !== null && Math.abs(level - tableLevel) < 0.03) level = tableLevel + (level - tableLevel) * 0.1;
     if (level > camera.position.y - 0.1) return;  // a table is below the phone
     const p = planePoint(camera, innerWidth * 0.5, innerHeight * 0.58, level);
     if (!p || p.distanceTo(camera.position) > 2.5) return;
@@ -370,10 +393,10 @@
       floating = false; model.visible = true; splat.visible = true;
       hint.textContent = "Tap to place it here, or hold still";
     }
-    // Steady: the spot has stayed within a couple of centimetres for 0.8 s.
+    // Steady: the spot has stayed within a couple of centimetres for 0.8 s (and at least 6 frames).
     const tol = Math.max(0.015, 0.03 * camera.position.distanceTo(p));
-    if (!anchor || p.distanceTo(anchor) > tol) { anchor = p.clone(); stableSince = now; }
-    else if (now - stableSince > 800) place();
+    if (!anchor || p.distanceTo(anchor) > tol) { anchor = p.clone(); stableSince = now; steadyFrames = 0; }
+    else if (++steadyFrames >= 6 && now - stableSince > 800) place();
   }
   // Put the model exactly on the ghost's spot (no slide), turning solid, and leave it there.
   function place() {

@@ -191,7 +191,7 @@
     if (!floated) { splat.position.copy(arTarget.pos); splat.rotation.set(0, arTarget.yaw, 0); floated = true; }
   }
   const samples = [];
-  let stableSince = 0, searchStart = 0, lastFrame = 0;
+  let stableSince = 0, searchStart = 0, lastFrame = 0, anchor = null;
   const raycaster = new THREE.Raycaster();
   const xrCam = () => renderer.xr.getCamera().cameras[0] || renderer.xr.getCamera();
 
@@ -205,7 +205,7 @@
     const placed = next === "placed";
     tools.hidden = !placed; sizer.hidden = !placed;
     if (placed) placedHint();
-    else { samples.length = 0; stableSince = 0; ring.material.opacity = 0.9; hint.textContent = floating ? "Point the phone at a table…" : "Tap to place it here, or hold still"; }
+    else { samples.length = 0; stableSince = 0; anchor = null; ring.material.opacity = 0.9; hint.textContent = floating ? "Point the phone at a table…" : "Tap to place it here, or hold still"; }
   }
   const atRealSize = () => Math.abs(arTarget.scale - 1) < 0.03;
   function placedHint() {
@@ -285,7 +285,9 @@
     hint.hidden = false; searchStart = performance.now(); lastFrame = 0;
     try {
       const viewer = await xrSession.requestReferenceSpace("viewer");
-      hitSource = await xrSession.requestHitTestSource({ space: viewer });
+      // planes AND tracked feature points: ARCore finds points on a plain table long before it has a plane
+      try { hitSource = await xrSession.requestHitTestSource({ space: viewer, entityTypes: ["plane", "point"] }); }
+      catch (err) { hitSource = await xrSession.requestHitTestSource({ space: viewer }); }
       floating = true; floated = false; splat.visible = true; fade = 0; splat.opacity = 0;  // the ghost floats ahead until a table is found
     } catch (e) {  // no hit-test: stand it on the floor 80 cm ahead; a tap places it
       hitSource = null; splat.visible = true; arTarget.pos.set(0, 0, -0.8); arTarget.yaw = 0; splat.position.copy(arTarget.pos);
@@ -304,26 +306,33 @@
   // tracked surfaces, so the model never shows at a guessed depth).
   function followSurface(frame, now) {
     if (!hitSource || arState !== "searching" || !splatReady) return;
-    const hit = frame.getHitTestResults(hitSource)[0];
-    if (!hit) return;
-    const pose = hit.getPose(renderer.xr.getReferenceSpace());
-    if (!pose) return;
-    const p = new THREE.Vector3().copy(pose.transform.position);
     const cam = xrCam().getWorldPosition(new THREE.Vector3());
+    // the first hit that is a surface below the phone (feature points can be on walls or above it)
+    let p = null;
+    for (const hit of frame.getHitTestResults(hitSource)) {
+      const pose = hit.getPose(renderer.xr.getReferenceSpace());
+      if (pose && pose.transform.position.y < cam.y - 0.08) { p = new THREE.Vector3().copy(pose.transform.position); break; }
+    }
+    if (!p) return;
     samples.push({ p, t: now });
-    while (samples.length > 6 && now - samples[0].t > 1200) samples.shift();  // the last 1.2 s, and at least 6 hits
+    while (samples.length > 4 && now - samples[0].t > 900) samples.shift();  // the last 0.9 s, and at least 4 hits
+    // Only the table HEIGHT comes from the hits (median; feature points jump in depth from frame to frame);
+    // the spot is where the screen-centre ray meets that height, so it holds still while the points jump.
     const ys = samples.map((s) => s.p.y).sort((a, b) => a - b);
-    arTarget.pos.set(p.x, ys[ys.length >> 1], p.z);
-    arTarget.yaw = Math.atan2(cam.x - p.x, cam.z - p.z);
+    const level = ys[ys.length >> 1];
+    raycaster.setFromCamera(new THREE.Vector2(0, 0), xrCam());
+    const spot = raycaster.ray.intersectPlane(new THREE.Plane(new THREE.Vector3(0, 1, 0), -level), new THREE.Vector3());
+    if (!spot || spot.distanceTo(cam) > 3) return;
+    arTarget.pos.copy(spot);
+    arTarget.yaw = Math.atan2(cam.x - spot.x, cam.z - spot.z);
     if (floating) {  // a table: the floating ghost glides down onto it, with the ring under it
       floating = false;
       setArState("searching");
     }
-    const tol = Math.max(0.015, 0.035 * cam.distanceTo(arTarget.pos));
-    const steady = samples.length >= 6 && samples.every((s) => s.p.distanceTo(arTarget.pos) < tol);
-    if (!steady) stableSince = 0;
-    else if (!stableSince) stableSince = now;
-    else if (now - stableSince > 1200 && now - searchStart > 1500) setArState("placed");
+    // Steady: the spot has stayed within a couple of centimetres (more when further away) for 0.8 s.
+    const tol = Math.max(0.015, 0.035 * cam.distanceTo(spot));
+    if (!anchor || spot.distanceTo(anchor) > tol) { anchor = spot.clone(); stableSince = now; return; }
+    else if (now - stableSince > 800 && now - searchStart > 1000) setArState("placed");
   }
   window.__splatView = { state: () => ({ arState, mode, visible: splat.visible, opacity: splat.opacity, scale: splat.scale.x, baseScale, arScale: arTarget.scale, realSizeText,
     pos: splat.position.toArray(), target: arTarget.pos.toArray(), yaw: splat.rotation.y, targetYaw: arTarget.yaw, ring: ring.visible }) };  // for tests
