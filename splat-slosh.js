@@ -51,6 +51,10 @@ export function makeSlosh(THREE, dyno, splat, { color = isJuice, gain = 1, start
           `  float H = ${i.geo}.w - ${i.geo}.z;`,
           `  float f = clamp((${g}.center.y - ${i.geo}.z) / H, 0.0, 1.0);`,
           `  float fade = 1.0 - smoothstep(${i.geo}.w + 0.03 * H, ${i.geo}.w + 0.10 * H, ${g}.center.y);`,
+          // juice-coloured splats just above the surface (the meniscus on the wall) move with the liquid too;
+          // left behind, they show as red specks on the glass when the surface tilts away
+          `  float juicy = step(0.03, ${g}.rgba.r - 1.5 * ${g}.rgba.g) * step(${g}.rgba.r, 0.7);`,
+          `  fade = max(fade, juicy * (1.0 - smoothstep(${i.geo}.w + 0.14 * H, ${i.geo}.w + 0.2 * H, ${g}.center.y)));`,
           `  float r = length(q);`,
           // splats inside the glass (by centre; the glass tapers) move; big juice splats whose edge pokes
           // through the wall fade out while lifted, so a sloshing juice never paints red specks on the wall
