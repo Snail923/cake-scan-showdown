@@ -80,6 +80,7 @@
   import { SparkRenderer, SplatMesh, dyno } from "@sparkjsdev/spark";
   import { makeSplatShadow } from "./splat-shadow.js";
   import { makeSlosh } from "./splat-slosh.js";
+  import { makeGhostTint } from "./splat-ghost.js";
   import { measureSplat, realSize } from "./splat-size.js";
 
   const q = new URLSearchParams(location.search);
@@ -148,6 +149,7 @@
     if (q.get("shadow") !== "0") { try { shapeShadow = makeSplatShadow(THREE, splat); if (shapeShadow) splat.add(shapeShadow); } catch (e) { console.warn(e); } }
     // ?liquid=1: the juice moves like a liquid when the glass is turned or moved (splat-slosh.js)
     if (q.get("liquid") === "1") { try { slosh = makeSlosh(THREE, dyno, splat, { glint: q.get("glass") === "1" }); window.__slosh = slosh; } catch (e) { console.warn(e); } }
+    try { ghostTint = makeGhostTint(THREE, dyno, splat); } catch (e) { console.warn(e); }  // after slosh: it adds to its modifier
     splatReady = true;
   })
     .catch((e) => { msg.textContent = "Could not load the splat"; console.error(e); });
@@ -179,7 +181,8 @@
   let xrSession = null, hitSource = null, arState = "searching", mode = "move", gesture = null, downAt = 0, fade = 1;
   const arTarget = { pos: new THREE.Vector3(), yaw: 0, scale: 1 };  // scale: on top of the real size (baseScale)
   const sizeBtn = document.getElementById("ar-size"), sizer = document.getElementById("ar-sizer"), sizeSlider = document.getElementById("ar-size-slider");
-  const GHOST = 0.22;
+  const GHOST = 0.22;  // ghost opacity; it is also tinted light blue (splat-ghost.js)
+  let ghostTint = null;
   let floating = false, floated = false;  // placing, no table found yet: the ghost floats in front of the phone
   // A little below the screen centre and upright, with the ring under it, small (about a fifth of the screen
   // height); the easing in updateAr keeps it steady.
@@ -196,7 +199,7 @@
   const xrCam = () => renderer.xr.getCamera().cameras[0] || renderer.xr.getCamera();
 
   const ring = new THREE.Mesh(new THREE.RingGeometry(0.93, 1, 64),
-    new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, depthWrite: false, opacity: 0.9, side: THREE.DoubleSide }));
+    new THREE.MeshBasicMaterial({ color: 0x8fd3ff, transparent: true, depthWrite: false, opacity: 0.9, side: THREE.DoubleSide }));  // light blue, like the ghost
   ring.rotation.x = -Math.PI / 2; ring.renderOrder = -1; ring.visible = false;
   scene.add(ring);
 
@@ -205,7 +208,7 @@
     const placed = next === "placed";
     tools.hidden = !placed; sizer.hidden = !placed;
     if (placed) placedHint();
-    else { samples.length = 0; stableSince = 0; anchor = null; ring.material.opacity = 0.9; hint.textContent = floating ? "Point the phone at a table…" : "Tap to place it here, or hold still"; }
+    else { samples.length = 0; stableSince = 0; anchor = null; ring.material.opacity = 0.9; hint.textContent = floating ? "Step 1 · Point the phone at the table\nwhere you want it" : "Step 2 · Tap the screen to place it here\n(or hold the phone still for a moment)"; }
   }
   const atRealSize = () => Math.abs(arTarget.scale - 1) < 0.03;
   function placedHint() {
@@ -297,7 +300,7 @@
     xrSession.addEventListener("end", () => {
       xrSession = null; hitSource = null; gesture = null; floating = false;
       overlay.classList.remove("ar-on"); hint.hidden = true; tools.hidden = true; sizer.hidden = true; ring.visible = false;
-      splat.position.set(0, 0, 0); splat.rotation.set(0, 0, 0); splat.scale.setScalar(baseScale); splat.visible = true; splat.opacity = 1;
+      splat.position.set(0, 0, 0); splat.rotation.set(0, 0, 0); splat.scale.setScalar(baseScale); splat.visible = true; splat.opacity = 1; if (ghostTint) ghostTint.set(0);
       if (shapeShadow) shapeShadow.material.opacity = 1;
       xrBtn.textContent = "View in your room";
     });
@@ -347,6 +350,8 @@
     if (fade !== goal) {
       fade = fade < goal ? Math.min(goal, fade + dt / 0.35) : Math.max(goal, fade - dt / 0.25);
       splat.opacity = fade;
+      // the ghost is tinted light blue; it turns to its real colours as it becomes solid
+      if (ghostTint) ghostTint.set(0.75 * (1 - Math.max(0, (fade - GHOST) / (1 - GHOST))));
       if (shapeShadow) shapeShadow.material.opacity = goal === 1 ? fade : 0;
     }
     const k = 1 - Math.pow(arState === "searching" ? 0.82 : 0.6, dt * 60);  // frame-rate independent easing

@@ -60,7 +60,7 @@
 <button class="btn" id="exit" type="button" hidden>✕ Close</button>
 <pre id="dbg" hidden></pre>
 <div class="panel" id="panel" hidden>
-  <span class="hint" id="hint">Point the phone at a table…</span>
+  <span class="hint" id="hint">Step 1 · Point the phone at the table<br>where you want it</span>
   <div class="row" id="tools" hidden>
     <div class="seg" role="group" aria-label="One-finger gesture">
       <button type="button" id="mode-move" aria-pressed="true">Move</button>
@@ -96,6 +96,7 @@
   import { SparkRenderer, SplatMesh, dyno } from "@sparkjsdev/spark";
   import { makeSplatShadow } from "./splat-shadow.js";
   import { makeSlosh } from "./splat-slosh.js";
+  import { makeGhostTint } from "./splat-ghost.js";
   import { measureSplat, realSize } from "./splat-size.js";
 
   const XR_URL = "https://cdn.jsdelivr.net/npm/@8thwall/engine-binary@1.0.0/dist/xr.js";
@@ -265,7 +266,7 @@
     new THREE.MeshBasicMaterial({ map: blobTexture(), transparent: true, depthWrite: false, opacity: q.get("shadow") === "0" ? 0 : 0.8 }));
   shadow.rotation.x = -Math.PI / 2; shadow.position.y = 0.001; shadow.renderOrder = -2;
   const ring = new THREE.Mesh(new THREE.RingGeometry(0.93, 1, 64),
-    new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, depthWrite: false, opacity: 0.9, side: THREE.DoubleSide }));
+    new THREE.MeshBasicMaterial({ color: 0x8fd3ff, transparent: true, depthWrite: false, opacity: 0.9, side: THREE.DoubleSide }));  // light blue, like the ghost
   ring.rotation.x = -Math.PI / 2; ring.position.y = 0.002; ring.renderOrder = -1;
   model.add(shadow, ring);
   function sizeDecor() {
@@ -312,7 +313,7 @@
   // Like Android: just "point at a table". 8th Wall needs a little camera motion to start tracking, which
   // usually happens while aiming; only if it hasn't started after 4 s does the hint ask for it.
   const waitingHint = () => tracking !== "NORMAL" && performance.now() - searchStart > 4000
-    ? "Point the phone at a table\nand move it slowly side to side" : "Point the phone at a table…";
+    ? "Step 1 · Point the phone at the table\nand move it slowly side to side" : "Step 1 · Point the phone at the table\nwhere you want it";
   // A table is below the phone and within reach: hits closer than 8 cm, further than 4 m or above the
   // phone are noise.
   function hitAt(XR8, x, y, types = ["DETECTED_SURFACE", "FEATURE_POINT", "ESTIMATED_SURFACE"]) {
@@ -391,7 +392,7 @@
     target.pos.copy(p); target.yaw = faceYaw(camera, p);
     if (floating) {  // the floating ghost glides down onto the table, with the ring under it
       floating = false; model.visible = true; splat.visible = true;
-      hint.textContent = "Tap to place it here, or hold still";
+      hint.textContent = "Step 2 · Tap the screen to place it here\n(or hold the phone still for a moment)";
     }
     // Steady: the spot has stayed within a couple of centimetres for 0.8 s (and at least 6 frames).
     const tol = Math.max(0.015, 0.03 * camera.position.distanceTo(p));
@@ -524,7 +525,8 @@
   }
   window.__splatAr.onTracking = onTracking;  // for tests
   let held = null, reanchor = false;
-  const GHOST = 0.22;
+  const GHOST = 0.22;  // ghost opacity; it is also tinted light blue (splat-ghost.js)
+  let ghostTint = null;
   // Before a table is found the ghost floats in front of the phone, a little below the screen centre and
   // upright, with the ring under it, small (about a fifth of the screen height) and eased so it stays steady.
   const fwd = new THREE.Vector3();
@@ -579,6 +581,7 @@
           }
           // ?liquid=1: the juice sloshes when the glass is moved, twisted or walked around (splat-slosh.js)
           if (q.get("liquid") === "1") { try { slosh = makeSlosh(THREE, dyno, splat, { glint: q.get("glass") === "1" }); } catch (e) { console.warn(e); } }
+          try { ghostTint = makeGhostTint(THREE, dyno, splat); } catch (e) { console.warn(e); }  // after slosh: it adds to its modifier
           splatReady = true;
           if (state === "searching" && floating) { model.visible = true; splat.visible = true; fade = 0; splat.opacity = 0; hint.textContent = waitingHint(); }
         }).catch((e) => fail("Could not load the splat.", e));
@@ -600,6 +603,8 @@
           if (fade !== goal) {
             fade = fade < goal ? Math.min(goal, fade + dt / 0.35) : Math.max(goal, fade - dt / 0.25);
             splat.opacity = fade;
+            // the ghost is tinted light blue; it turns to its real colours as it becomes solid
+            if (ghostTint) ghostTint.set(0.75 * (1 - Math.max(0, (fade - GHOST) / (1 - GHOST))));
             if (shapeShadow) shapeShadow.material.opacity = goal === 1 ? fade : 0;
           }
         }
