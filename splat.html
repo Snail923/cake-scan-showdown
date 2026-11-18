@@ -208,7 +208,7 @@
     const placed = next === "placed";
     tools.hidden = !placed; sizer.hidden = !placed;
     if (placed) placedHint();
-    else { samples.length = 0; stableSince = 0; anchor = null; ring.material.opacity = 0.9; hint.textContent = floating ? "Step 1 · Point the phone at the table\nwhere you want it" : "Step 2 · Tap the screen to place it here\n(or hold the phone still for a moment)"; }
+    else { samples.length = 0; stableSince = 0; anchor = null; ring.material.opacity = 0.9; hint.textContent = floating ? "Tap the screen to place it\n(aim at the table to set it on it)" : "Tap the screen to place it here"; }
   }
   const atRealSize = () => Math.abs(arTarget.scale - 1) < 0.03;
   function placedHint() {
@@ -274,7 +274,7 @@
   overlay.addEventListener("touchend", (e) => {
     if (!xrSession || !gesture) return;
     const g = gesture;
-    if (g.kind === 1 && !g.moved && !e.touches.length && e.timeStamp - downAt < 500 && arState === "searching" && splat.visible && !floating) setArState("placed");
+    if (g.kind === 1 && !g.moved && !e.touches.length && e.timeStamp - downAt < 500 && arState === "searching" && splat.visible) { floating = false; setArState("placed"); }  // a tap places it at once
     if (e.touches.length) beginGesture(e.touches, true); else gesture = null;  // re-anchor, so lifting one finger doesn't jump
   }, { passive: true });
 
@@ -335,7 +335,7 @@
     // Steady: the spot has stayed within a couple of centimetres (more when further away) for 0.8 s.
     const tol = Math.max(0.015, 0.035 * cam.distanceTo(spot));
     if (!anchor || spot.distanceTo(anchor) > tol) { anchor = spot.clone(); stableSince = now; return; }
-    else if (now - stableSince > 800 && now - searchStart > 1000) setArState("placed");
+    // no auto-placement: only the user's tap places it
   }
   window.__splatView = { state: () => ({ arState, mode, visible: splat.visible, opacity: splat.opacity, scale: splat.scale.x, baseScale, arScale: arTarget.scale, realSizeText,
     pos: splat.position.toArray(), target: arTarget.pos.toArray(), yaw: splat.rotation.y, targetYaw: arTarget.yaw, ring: ring.visible }) };  // for tests

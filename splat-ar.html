@@ -60,7 +60,7 @@
 <button class="btn" id="exit" type="button" hidden>✕ Close</button>
 <pre id="dbg" hidden></pre>
 <div class="panel" id="panel" hidden>
-  <span class="hint" id="hint">Step 1 · Point the phone at the table<br>where you want it</span>
+  <span class="hint" id="hint">Tap the screen to place it<br>(aim at the table to set it on it)</span>
   <div class="row" id="tools" hidden>
     <div class="seg" role="group" aria-label="One-finger gesture">
       <button type="button" id="mode-move" aria-pressed="true">Move</button>
@@ -313,7 +313,7 @@
   // Like Android: just "point at a table". 8th Wall needs a little camera motion to start tracking, which
   // usually happens while aiming; only if it hasn't started after 4 s does the hint ask for it.
   const waitingHint = () => tracking !== "NORMAL" && performance.now() - searchStart > 4000
-    ? "Step 1 · Point the phone at the table\nand move it slowly side to side" : "Step 1 · Point the phone at the table\nwhere you want it";
+    ? "Tap the screen to place it\n(move the phone a little so it can find the table)" : "Tap the screen to place it\n(aim at the table to set it on it)";
   // A table is below the phone and within reach: hits closer than 8 cm, further than 4 m or above the
   // phone are noise.
   function hitAt(XR8, x, y, types = ["DETECTED_SURFACE", "FEATURE_POINT", "ESTIMATED_SURFACE"]) {
@@ -333,9 +333,9 @@
   }
   const faceYaw = (camera, p) => Math.atan2(camera.position.x - p.x, camera.position.z - p.z);
 
-  // Placement, like AR Quick Look: while placing, a see-through ghost of the model and a ring show where it
-  // will go (as soon as a few tracked points agree on a table); tap to place it there at once, or hold the
-  // phone still and it places itself once the spot is steady. After
+  // Placement: a see-through ghost of the model and a ring show where it will go. A tap places it at once,
+  // whenever the user likes: on the table if a few tracked points already agree on one under the ring (the
+  // ghost glides onto it), otherwise where the ghost floats. Nothing places itself. After
   // that it never follows the phone: only a finger moves it, or Re-align starts over.
   // 8th Wall reports single tracked points, and from frame to frame the one under the screen centre comes
   // from a different depth, so following the points made the model jump nearer and farther (and look
@@ -392,16 +392,17 @@
     target.pos.copy(p); target.yaw = faceYaw(camera, p);
     if (floating) {  // the floating ghost glides down onto the table, with the ring under it
       floating = false; model.visible = true; splat.visible = true;
-      hint.textContent = "Step 2 · Tap the screen to place it here\n(or hold the phone still for a moment)";
+      hint.textContent = "Tap the screen to place it here";
     }
     // Steady: the spot has stayed within a couple of centimetres for 0.8 s (and at least 6 frames).
     const tol = Math.max(0.015, 0.03 * camera.position.distanceTo(p));
     if (!anchor || p.distanceTo(anchor) > tol) { anchor = p.clone(); stableSince = now; steadyFrames = 0; }
-    else if (++steadyFrames >= 6 && now - stableSince > 800) place();
+    // no auto-placement: only the user's tap places it
   }
   // Put the model exactly on the ghost's spot (no slide), turning solid, and leave it there.
   function place() {
-    if (state !== "searching" || !model.visible || floating) return;
+    if (state !== "searching" || !model.visible) return;
+    floating = false;  // a tap places it straight away: on the table if found, else where the ghost floats
     model.position.copy(target.pos); model.rotation.y = target.yaw;
     splat.visible = true;
     shadow.visible = !shapeShadow;
