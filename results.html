@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Final Scan Results</title>
-<meta name="description" content="The final Gaussian splat scans of a medium pizza, plain and with ketchup, and a glass of juice polished in Blender, viewable in 3D and in AR on iPhone and Android.">
+<meta name="description" content="The final Gaussian splat scans of a medium pizza, plain and with ketchup, a glass of juice polished in Blender and a cocktail topped with cream and cashews, viewable in 3D and in AR on iPhone and Android.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
@@ -103,8 +103,8 @@
 
   <header>
     <span class="eyebrow">Cake Scan Showdown · final results</span>
-    <h1>Medium pizza and a glass of juice</h1>
-    <p>The final capture: one medium pizza (about 30 cm), scanned twice as a Gaussian splat, first plain and then with a ketchup drizzle, with the same setup and camera settings, so the two can be compared side by side, plus a glass of juice, the hardest test because of the clear glass, polished in Blender. Drag to orbit, pinch or scroll to zoom, and tap <strong>View on your table</strong> on a phone to place it in AR (iPhone and Android).</p>
+    <h1>Medium pizza, a glass of juice and a cocktail</h1>
+    <p>The final capture: one medium pizza (about 30 cm), scanned twice as a Gaussian splat, first plain and then with a ketchup drizzle, with the same setup and camera settings, so the two can be compared side by side, plus a glass of juice, the hardest test because of the clear glass, polished in Blender, and a cocktail topped with cream and cashews. Drag to orbit, pinch or scroll to zoom, and tap <strong>View on your table</strong> on a phone to place it in AR (iPhone and Android).</p>
   </header>
 
   <div class="picker" role="tablist" aria-label="Choose a version"></div>
@@ -199,7 +199,14 @@
       notes: ["Turntable photos on a white mat with pen marks and a plain white wall; the top ring of photos was left out because it made the juice cloudy.",
               "Polished in Blender: the juice colour matched to the deep red of the photos, its streaky angle-dependent shading calmed so it reads as smooth liquid, a more opaque body, the beige-brown reflection on the surface and the brown streaks above it removed, and the haze around the glass cleaned up.",
               "The glass is not modelled: its rim and wall come straight from the photos, made clearer, with white flecks of lint removed. Its reflections are added live: a window-like highlight that slides over the glass as you orbit, and bright edges like real glass.",
-              "Stood upright so it sits on the table in AR."] }
+              "Stood upright so it sits on the table in AR."] },
+    { id: "cocktail", label: "Cocktail · cream and cashews", src: "cocktail_splat.sog", params: "h=0.131&w=0.095",
+      lead: "A pink cocktail in a clear plastic cup, topped with whipped cream and cashews, with pieces of cream through the drink.",
+      facts: [["Photos", "181 (3 heights)"], ["Splats", "85,281"], ["Size", "3.8 MB (phone 1.8)"], ["Height", "13 cm"]],
+      notes: ["Turntable photos from three heights on a white mat with pen marks and a plain wall, with fixed exposure; the top ring shows the cream and cashews from above.",
+              "Cameras solved with COLMAP and checked ring by ring; training used masks built from the cup's shape, so the whole round cup is learned in every photo.",
+              "Cleaned by hand in SuperSplat, then the faint white glow around the rim, on the cup wall and under the base removed.",
+              "Stands upright so it sits on the table in AR."] }
   ];
 
   var picker = document.querySelector(".picker");
