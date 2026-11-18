@@ -52,7 +52,12 @@ export function makeSlosh(THREE, dyno, splat, { color = isJuice, gain = 1, start
           `  float f = clamp((${g}.center.y - ${i.geo}.z) / H, 0.0, 1.0);`,
           `  float fade = 1.0 - smoothstep(${i.geo}.w + 0.03 * H, ${i.geo}.w + 0.10 * H, ${g}.center.y);`,
           `  float r = length(q);`,
-          `  float inside = 1.0 - smoothstep(${i.geo2}.x * 1.08, ${i.geo2}.x * 1.3, r);`,
+          // splats inside the glass (by centre; the glass tapers) move; big juice splats whose edge pokes
+          // through the wall fade out while lifted, so a sloshing juice never paints red specks on the wall
+          `  float rwl = ${i.geo2}.x + (${g}.center.y - ${i.geo}.w) * ${i.glass}.x;`,
+          `  float inside = 1.0 - smoothstep(1.0 * rwl, 1.06 * rwl, r);`,
+          `  float reach = r + 1.5 * max(${g}.scales.x, max(${g}.scales.y, ${g}.scales.z));`,
+          `  float poke = smoothstep(0.98 * rwl, 1.06 * rwl, reach);`,
           `  float ripple = ${i.wave}.z * sin(r * ${i.geo2}.y - ${i.wave}.w) * smoothstep(0.7, 1.0, f);`,
           `  if (${i.glass}.z + ${i.glass}.w > 0.0) {`,
           `    float rw = ${i.geo2}.x + (${g}.center.y - ${i.geo}.w) * ${i.glass}.x;`,
@@ -78,7 +83,9 @@ export function makeSlosh(THREE, dyno, splat, { color = isJuice, gain = 1, start
           `      ${g}.rgba.a = clamp(${g}.rgba.a + add * 0.3, 0.0, 0.95);`,
           `    }`,
           `  }`,
-          `  ${g}.center.y += smoothstep(0.15, 0.8, f) * fade * inside * (dot(q, ${i.wave}.xy) + ripple);`,
+          `  float lift = smoothstep(0.15, 0.8, f) * fade * inside * (dot(q, ${i.wave}.xy) + ripple);`,
+          `  ${g}.center.y += lift;`,
+          `  ${g}.rgba.a *= 1.0 - 0.9 * poke * smoothstep(0.0005, 0.004, abs(lift));`,
           `}`,
         ];
       },
