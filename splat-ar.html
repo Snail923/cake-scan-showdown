@@ -500,6 +500,7 @@
   };
   // Real-size check (splat-size.js): scale the model to the card's w / h if it is 4-25% off, and label it.
   function onTracking({ status, reason }) {
+    if (status !== tracking) poseFilter.reset();
     const was = tracking;
     tracking = status; trackingReason = reason || "";
     if (status === "NORMAL" && was !== "NORMAL") normalSince = performance.now();
@@ -555,6 +556,37 @@
     return false;
   }
 
+  // Steadier pose on iPhone: 8th Wall tracks from the camera image inside the page, so its camera pose
+  // jitters by a few millimetres and a fraction of a degree from frame to frame, which makes a placed
+  // model shake. A One Euro filter smooths the pose the engine reports before each frame is drawn:
+  // strongly while the phone is nearly still (where jitter shows), hardly at all while it moves (no lag).
+  // ?smooth=0 turns it off; ?smooth=2 smooths twice as hard (0.5 half as hard).
+  const SMOOTH = q.has("smooth") ? Math.max(0, parseFloat(q.get("smooth")) || 0) : 1;
+  const poseFilter = {
+    pos: null, quat: null, speed: 0, turn: 0, last: 0, jitter: 0,
+    reset() { this.pos = null; },
+    // One Euro: the cutoff rises with speed, so fast moves pass straight through
+    alpha(cutoff, dt) { const tau = 1 / (2 * Math.PI * cutoff); return 1 / (1 + tau / dt); },
+    apply(camera, now) {
+      if (!SMOOTH) return;
+      const dt = this.last ? Math.min(0.1, Math.max(0.004, (now - this.last) / 1000)) : 1 / 30;
+      this.last = now;
+      if (!this.pos) { this.pos = camera.position.clone(); this.quat = camera.quaternion.clone(); this.speed = this.turn = 0; return; }
+      const step = this.pos.distanceTo(camera.position), angle = this.quat.angleTo(camera.quaternion);
+      if (step > 0.25 || angle > 0.6) { this.reset(); return this.apply(camera, now); }  // a jump: follow it at once
+      const ad = this.alpha(1.0, dt);
+      this.speed += (step / dt - this.speed) * ad;   // smoothed speed (m/s) and turn rate (rad/s)
+      this.turn += (angle / dt - this.turn) * ad;
+      const ap = this.alpha((1.0 + 20 * this.speed) / SMOOTH, dt);
+      const aq = this.alpha((1.2 + 2.5 * this.turn) / SMOOTH, dt);
+      this.jitter += (step * 1000 - this.jitter) * 0.05;   // raw movement per frame in mm, for ?debug=1
+      this.pos.lerp(camera.position, ap);
+      this.quat.slerp(camera.quaternion, aq);
+      camera.position.copy(this.pos); camera.quaternion.copy(this.quat);
+      camera.updateMatrixWorld(true);
+    },
+  };
+  
   let lastFrame = 0;
   function splatModule(XR8) {
     return {
@@ -596,6 +628,7 @@
         lastFrame = now;
         trackFrameRate(now, model.visible);
         const { camera } = XR8.Threejs.xrScene();
+        if (tracking === "NORMAL") poseFilter.apply(camera, now); else poseFilter.reset();
         if (state === "searching") autoAlign(XR8, camera, now);  // once placed, the model stays where it is
         if (state === "searching" && floating && model.visible) floatGhost(camera);
         if (model.visible && splat) {
@@ -623,7 +656,7 @@
         if (DEBUG) {
           dbg.textContent = `camera: ${camInfo.label || "?"} ${camInfo.size}${camInfo.note ? " (" + camInfo.note + ")" : ""}\n` +
             `opened first: ${camInfo.env || "-"}\n` +
-            `canvas ${canvas.width}×${canvas.height} (${renderScale.toFixed(2)}×) · ${stats.fps.toFixed(0)} fps\n` +
+            `canvas ${canvas.width}×${canvas.height} (${renderScale.toFixed(2)}×) · ${stats.fps.toFixed(0)} fps · jitter ${poseFilter.jitter.toFixed(1)} mm${SMOOTH ? "" : " (no smoothing)"}\n` +
             `tracking ${tracking || "-"}${trackingReason ? " (" + trackingReason + ")" : ""} · ${state} · hit ${lastHitType || "-"}\n` +
             `size ${realSizeText || "-"}${window.__splatAr.size && window.__splatAr.size.fix !== 1 ? " (corrected ×" + window.__splatAr.size.fix.toFixed(3) + ")" : ""}`;
         }
