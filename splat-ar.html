@@ -560,11 +560,15 @@
   // jitters by a few millimetres and a fraction of a degree from frame to frame, which makes a placed
   // model shake. A One Euro filter smooths the pose the engine reports before each frame is drawn:
   // strongly while the phone is nearly still (where jitter shows), hardly at all while it moves (no lag).
-  // ?smooth=0 turns it off; ?smooth=2 smooths twice as hard (0.5 half as hard).
+  // On top of that a small hold zone: changes under HOLD_MM / HOLD_DEG are ignored, and larger ones only
+  // move the pose by the part beyond the zone, so a phone held still gives a model that is completely still
+  // (an unchanged camera also means Spark does not re-sort the splats, which removes the shimmer).
+  // ?smooth=0 turns it off; ?smooth=2 smooths and holds twice as hard (0.5 half as hard).
   const SMOOTH = q.has("smooth") ? Math.max(0, parseFloat(q.get("smooth")) || 0) : 1;
+const HOLD_MM = 3, HOLD_DEG = 0.25;
   const poseFilter = {
-    pos: null, quat: null, speed: 0, turn: 0, last: 0, jitter: 0,
-    reset() { this.pos = null; },
+    pos: null, quat: null, held: null, heldQ: null, still: false, speed: 0, turn: 0, last: 0, jitter: 0,
+    reset() { this.pos = null; this.held = null; },
     // One Euro: the cutoff rises with speed, so fast moves pass straight through
     alpha(cutoff, dt) { const tau = 1 / (2 * Math.PI * cutoff); return 1 / (1 + tau / dt); },
     apply(camera, now) {
@@ -582,7 +586,14 @@
       this.jitter += (step * 1000 - this.jitter) * 0.05;   // raw movement per frame in mm, for ?debug=1
       this.pos.lerp(camera.position, ap);
       this.quat.slerp(camera.quaternion, aq);
-      camera.position.copy(this.pos); camera.quaternion.copy(this.quat);
+      // hold zone: follow the smoothed pose only by the part of the change beyond the zone
+      if (!this.held) { this.held = this.pos.clone(); this.heldQ = this.quat.clone(); }
+      const dz = HOLD_MM / 1000 * SMOOTH, az = HOLD_DEG * Math.PI / 180 * SMOOTH;
+      const d = this.held.distanceTo(this.pos), a = this.heldQ.angleTo(this.quat);
+      if (d > dz) this.held.lerp(this.pos, 1 - dz / d);
+      if (a > az) this.heldQ.slerp(this.quat, 1 - az / a);
+      this.still = d <= dz && a <= az;
+      camera.position.copy(this.held); camera.quaternion.copy(this.heldQ);
       camera.updateMatrixWorld(true);
     },
   };
@@ -656,7 +667,7 @@
         if (DEBUG) {
           dbg.textContent = `camera: ${camInfo.label || "?"} ${camInfo.size}${camInfo.note ? " (" + camInfo.note + ")" : ""}\n` +
             `opened first: ${camInfo.env || "-"}\n` +
-            `canvas ${canvas.width}×${canvas.height} (${renderScale.toFixed(2)}×) · ${stats.fps.toFixed(0)} fps · jitter ${poseFilter.jitter.toFixed(1)} mm${SMOOTH ? "" : " (no smoothing)"}\n` +
+            `canvas ${canvas.width}×${canvas.height} (${renderScale.toFixed(2)}×) · ${stats.fps.toFixed(0)} fps · jitter ${poseFilter.jitter.toFixed(1)} mm${SMOOTH ? (poseFilter.still ? " · held" : " · moving") : " (no smoothing)"}\n` +
             `tracking ${tracking || "-"}${trackingReason ? " (" + trackingReason + ")" : ""} · ${state} · hit ${lastHitType || "-"}\n` +
             `size ${realSizeText || "-"}${window.__splatAr.size && window.__splatAr.size.fix !== 1 ? " (corrected ×" + window.__splatAr.size.fix.toFixed(3) + ")" : ""}`;
         }
