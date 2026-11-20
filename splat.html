@@ -41,6 +41,29 @@
   .seg button:focus-visible, .ar-btn:focus-visible { outline: 3px solid #fff; outline-offset: 2px; }
   [hidden] { display: none !important; }
   #xr-btn:focus-visible, #ar8-btn:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+  /* centre-screen placement guide (one step at a time) */
+  .guide { position: fixed; left: 50%; top: 30%; transform: translate(-50%, -50%); width: min(84vw, 340px); padding: 16px 18px 14px;
+    border-radius: 18px; background: rgb(20 18 24 / .8); box-shadow: 0 8px 24px rgb(0 0 0 / .3); text-align: center; pointer-events: none; }
+  .guide { color: #fff; }
+  .g-title { font: 600 19px/1.25 "IBM Plex Sans", system-ui, sans-serif; }
+  .g-sub { margin-top: 4px; color: rgb(255 255 255 / .78); font-size: 14px; }
+  .g-dots { margin-top: 12px; }
+  .g-dots i { display: inline-block; width: 22px; height: 4px; margin: 0 3px; border-radius: 2px; background: rgb(255 255 255 / .25); }
+  .g-dots i.on { background: #e46a9e; }
+  .g-icon { position: relative; width: 64px; height: 56px; margin: 0 auto 10px; }
+  .g-icon::before, .g-icon::after { content: ""; position: absolute; box-sizing: border-box; }
+  .guide[data-step="move"] .g-icon::before, .guide[data-step="lost"] .g-icon::before {
+    left: 19px; top: 3px; width: 26px; height: 48px; border: 3px solid #fff; border-radius: 7px; animation: g-sway 1.6s ease-in-out infinite; }
+  .guide[data-step="aim"] .g-icon::before { left: 8px; top: 2px; width: 48px; height: 48px; border: 3px solid #8fd3ff; border-radius: 50%; animation: g-pulse 1.4s ease-in-out infinite; }
+  .guide[data-step="aim"] .g-icon::after { left: 28px; top: 22px; width: 8px; height: 8px; border-radius: 50%; background: #8fd3ff; }
+  .guide[data-step="tap"] .g-icon::before { left: 23px; top: 17px; width: 18px; height: 18px; border-radius: 50%; background: #e46a9e; }
+  .guide[data-step="tap"] .g-icon::after { left: 8px; top: 2px; width: 48px; height: 48px; border: 3px solid #e46a9e; border-radius: 50%; animation: g-ripple 1.2s ease-out infinite; }
+  @keyframes g-sway { 0%, 100% { transform: translateX(-14px) rotate(-6deg); } 50% { transform: translateX(14px) rotate(6deg); } }
+  @keyframes g-pulse { 0%, 100% { transform: scale(.85); opacity: .7; } 50% { transform: scale(1.05); opacity: 1; } }
+  @keyframes g-ripple { from { transform: scale(.4); opacity: 1; } to { transform: scale(1.1); opacity: 0; } }
+  .guide.nudge { animation: g-nudge .45s ease; }
+  @keyframes g-nudge { 0%, 100% { transform: translate(-50%, -50%); } 20%, 60% { transform: translate(calc(-50% - 8px), -50%); } 40%, 80% { transform: translate(calc(-50% + 8px), -50%); } }
+  @media (prefers-reduced-motion: reduce) { .guide .g-icon::before, .guide .g-icon::after, .guide.nudge { animation: none; } }
 </style>
 <script type="importmap">
   {
@@ -56,6 +79,12 @@
 <div id="overlay">
   <span class="msg" id="msg">Loading splat…</span>
   <button id="xr-btn" type="button" hidden>View in your room</button>
+  <div class="guide" id="ar-guide" hidden aria-live="polite">
+    <div class="g-icon" aria-hidden="true"></div>
+    <div class="g-title"></div>
+    <div class="g-sub"></div>
+    <div class="g-dots" aria-hidden="true"><i></i><i></i><i></i></div>
+  </div>
   <span id="ar-hint" class="ar-pill" hidden></span>
   <div id="ar-tools" hidden>
     <div class="seg" role="group" aria-label="One-finger gesture">
@@ -182,6 +211,36 @@
   const arTarget = { pos: new THREE.Vector3(), yaw: 0, scale: 1 };  // scale: on top of the real size (baseScale)
   const sizeBtn = document.getElementById("ar-size"), sizer = document.getElementById("ar-sizer"), sizeSlider = document.getElementById("ar-size-slider");
   const GHOST = 0.22;  // ghost opacity; it is also tinted light blue (splat-ghost.js)
+  // Centre-screen guide while placing, the same steps as on iPhone; the bottom hint is for the placed model.
+  //   1 move: ARCore is not tracking yet or has not seen a surface; taps do not place yet
+  //   2 aim:  no table under the screen centre for a moment
+  //   3 tap:  the ghost sits on the table
+  const guide = document.getElementById("ar-guide");
+  const GUIDE = {
+    move: [1, "Move your phone slowly left and right", "AR is getting ready. Keep the table in view."],
+    aim: [2, "Point at the table", "Aim the circle at the spot where the dish should stand."],
+    tap: [3, "Tap to place it here", "Tap anywhere on the screen."],
+  };
+  let guideKey = null, tracked = false, seenSurface = false, lastHitAt = 0;
+  function guideStep(now) {
+    if (!xrSession || arState !== "searching") return "";
+    if (!hitSource) return "tap";  // no hit-test on this phone: the model stands ahead, a tap places it
+    if (!tracked || !seenSurface) return "move";
+    return now - lastHitAt > 800 ? "aim" : "tap";
+  }
+  function updateGuide(now) {
+    const key = guideStep(now);
+    if (key === guideKey) return;
+    guideKey = key;
+    guide.hidden = !key; hint.hidden = !!key || !xrSession;
+    if (!key) return;
+    const [n, title, sub] = GUIDE[key];
+    guide.dataset.step = key;
+    guide.querySelector(".g-title").textContent = title;
+    guide.querySelector(".g-sub").textContent = sub;
+    guide.querySelectorAll(".g-dots i").forEach((d, i) => d.classList.toggle("on", i < n));
+  }
+  function nudgeGuide() { guide.classList.remove("nudge"); void guide.offsetWidth; guide.classList.add("nudge"); }
   let ghostTint = null;
   let floating = false, floated = false;  // placing, no table found yet: the ghost floats in front of the phone
   // A little below the screen centre and upright, with the ring under it, small (about a fifth of the screen
@@ -274,7 +333,9 @@
   overlay.addEventListener("touchend", (e) => {
     if (!xrSession || !gesture) return;
     const g = gesture;
-    if (g.kind === 1 && !g.moved && !e.touches.length && e.timeStamp - downAt < 500 && arState === "searching" && splat.visible) { floating = false; setArState("placed"); }  // a tap places it at once
+    if (g.kind === 1 && !g.moved && !e.touches.length && e.timeStamp - downAt < 500 && arState === "searching" && splat.visible) {  // a tap places it at once, once AR is tracking
+      if (guideKey === "move") nudgeGuide(); else { floating = false; setArState("placed"); }
+    }
     if (e.touches.length) beginGesture(e.touches, true); else gesture = null;  // re-anchor, so lifting one finger doesn't jump
   }, { passive: true });
 
@@ -285,7 +346,7 @@
     overlay.classList.add("ar-on");
     splat.rotation.set(0, 0, 0); splat.scale.setScalar(baseScale); setScale(1); setMode("move");
     ring.scale.setScalar(footprint * 1.3);
-    hint.hidden = false; searchStart = performance.now(); lastFrame = 0;
+    hint.hidden = false; searchStart = performance.now(); lastFrame = 0; tracked = false; seenSurface = false; guideKey = null;
     try {
       const viewer = await xrSession.requestReferenceSpace("viewer");
       // planes AND tracked feature points: ARCore finds points on a plain table long before it has a plane
@@ -299,7 +360,7 @@
     xrBtn.textContent = "Exit AR";
     xrSession.addEventListener("end", () => {
       xrSession = null; hitSource = null; gesture = null; floating = false;
-      overlay.classList.remove("ar-on"); hint.hidden = true; tools.hidden = true; sizer.hidden = true; ring.visible = false;
+      overlay.classList.remove("ar-on"); hint.hidden = true; guide.hidden = true; guideKey = null; tools.hidden = true; sizer.hidden = true; ring.visible = false;
       splat.position.set(0, 0, 0); splat.rotation.set(0, 0, 0); splat.scale.setScalar(baseScale); splat.visible = true; splat.opacity = 1; if (ghostTint) ghostTint.set(0);
       if (shapeShadow) shapeShadow.material.opacity = 1;
       xrBtn.textContent = "View in your room";
@@ -317,6 +378,7 @@
       if (pose && pose.transform.position.y < cam.y - 0.08) { p = new THREE.Vector3().copy(pose.transform.position); break; }
     }
     if (!p) return;
+    seenSurface = true; lastHitAt = now;
     samples.push({ p, t: now });
     while (samples.length > 4 && now - samples[0].t > 900) samples.shift();  // the last 0.9 s, and at least 4 hits
     // Only the table HEIGHT comes from the hits (median; feature points jump in depth from frame to frame);
@@ -344,6 +406,8 @@
     const dt = lastFrame ? Math.min(0.1, (now - lastFrame) / 1000) : 1 / 60;
     lastFrame = now;
     if (frame) followSurface(frame, now);
+    if (frame) { const vp = frame.getViewerPose(renderer.xr.getReferenceSpace()); tracked = !!vp && !vp.emulatedPosition; }
+    updateGuide(now);
     if (!splat.visible) { ring.visible = false; return; }
     if (floating && arState === "searching") floatGhost();
     const goal = arState === "placed" ? 1 : GHOST;  // a see-through ghost while placing, solid once placed
