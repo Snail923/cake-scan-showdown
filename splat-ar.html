@@ -17,6 +17,8 @@
     pointer-events: none; }
   .panel > * { pointer-events: auto; }
   .hint { display: inline-block; max-width: 420px; white-space: pre-line; padding: 10px 14px; border-radius: 12px; background: var(--scrim); color: var(--ink); text-align: center; pointer-events: none !important; }
+  .hint.nudge { animation: nudge .45s ease; }
+  @keyframes nudge { 0%, 100% { transform: translateX(0); } 20%, 60% { transform: translateX(-6px); } 40%, 80% { transform: translateX(6px); } }
   .row { display: flex; gap: 10px; align-items: center; justify-content: center; flex-wrap: wrap; }
   .sizer { display: flex; gap: 10px; align-items: center; padding: 6px 6px 6px 16px; border-radius: 999px; background: var(--scrim); box-shadow: 0 4px 14px rgb(0 0 0 / .25); }
   .sizer input { width: min(46vw, 220px); accent-color: var(--accent); height: 28px; margin: 0; }
@@ -315,8 +317,8 @@
   let lastHitType = "", tracking = "", trackingReason = "", normalSince = 0;
   // Like Android: just "point at a table". 8th Wall needs a little camera motion to start tracking, which
   // usually happens while aiming; only if it hasn't started after 4 s does the hint ask for it.
-  const waitingHint = () => tracking !== "NORMAL" && performance.now() - searchStart > 4000
-    ? "Tap the screen to place it\n(move the phone a little so it can find the table)" : "Tap the screen to place it\n(aim at the table to set it on it)";
+  const waitingHint = () => tracking !== "NORMAL"
+    ? "Move your phone slowly left and right\nto start tracking, then tap to place it" : "Tap the screen to place it\n(aim at the table to set it on it)";
   // A table is below the phone and within reach: hits closer than 8 cm, further than 4 m or above the
   // phone are noise.
   function hitAt(XR8, x, y, types = ["DETECTED_SURFACE", "FEATURE_POINT", "ESTIMATED_SURFACE"]) {
@@ -405,6 +407,7 @@
   // Put the model exactly on the ghost's spot (no slide), turning solid, and leave it there.
   function place() {
     if (state !== "searching" || !model.visible) return;
+    if (tracking !== "NORMAL" && !q.has("anydevice")) { hint.textContent = "Move your phone slowly left and right\nto start tracking, then tap to place it"; hint.classList.remove("nudge"); void hint.offsetWidth; hint.classList.add("nudge"); return; }
     floating = false;  // a tap places it straight away: on the table if found, else where the ghost floats
     model.position.copy(target.pos); model.rotation.y = target.yaw;
     splat.visible = true;
