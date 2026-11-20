@@ -567,8 +567,8 @@
   const SMOOTH = q.has("smooth") ? Math.max(0, parseFloat(q.get("smooth")) || 0) : 1;
 const HOLD_MM = 3, HOLD_DEG = 0.25;
   const poseFilter = {
-    pos: null, quat: null, held: null, heldQ: null, still: false, speed: 0, turn: 0, last: 0, jitter: 0,
-    reset() { this.pos = null; this.held = null; },
+    pos: null, quat: null, held: null, heldQ: null, proj: null, projJitter: 0, still: false, speed: 0, turn: 0, last: 0, jitter: 0,
+    reset() { this.pos = null; this.held = null; this.proj = null; },
     // One Euro: the cutoff rises with speed, so fast moves pass straight through
     alpha(cutoff, dt) { const tau = 1 / (2 * Math.PI * cutoff); return 1 / (1 + tau / dt); },
     apply(camera, now) {
@@ -593,12 +593,20 @@ const HOLD_MM = 3, HOLD_DEG = 0.25;
       if (d > dz) this.held.lerp(this.pos, 1 - dz / d);
       if (a > az) this.heldQ.slerp(this.quat, 1 - az / a);
       this.still = d <= dz && a <= az;
+      // the lens (projection) the engine sets every frame: keep it unless it really changed (over 1%)
+      const pm = camera.projectionMatrix;
+      if (!this.proj) this.proj = pm.clone();
+      let pd = 0;
+      for (const k of [0, 5, 8, 9]) pd = Math.max(pd, Math.abs(pm.elements[k] - this.proj.elements[k]) / (Math.abs(this.proj.elements[k]) + 1e-3));
+      this.projJitter += (pd * 100 - this.projJitter) * 0.05;
+      if (pd < 0.01) { pm.copy(this.proj); camera.projectionMatrixInverse.copy(pm).invert(); } else this.proj.copy(pm);
       camera.position.copy(this.held); camera.quaternion.copy(this.heldQ);
       camera.updateMatrixWorld(true);
     },
   };
   
   let lastFrame = 0;
+  let screenPrev = null, screenMove = 0;
   function splatModule(XR8) {
     return {
       name: "splat",
@@ -664,10 +672,16 @@ const HOLD_MM = 3, HOLD_DEG = 0.25;
           ring.material.opacity = state === "searching" ? 0.55 + 0.35 * Math.sin(now / 250) : Math.max(0, ring.material.opacity - dt * 3);
         }
         if (slosh && model.visible) slosh.update(camera);
+        if (DEBUG && model.visible) {  // how far the model moves on screen per frame, in pixels
+          const v = model.getWorldPosition(new THREE.Vector3()).project(camera);
+          const px = new THREE.Vector2((v.x + 1) * canvas.width / 2, (v.y + 1) * canvas.height / 2);
+          if (screenPrev) screenMove += (px.distanceTo(screenPrev) - screenMove) * 0.1;
+          screenPrev = px;
+        }
         if (DEBUG) {
           dbg.textContent = `camera: ${camInfo.label || "?"} ${camInfo.size}${camInfo.note ? " (" + camInfo.note + ")" : ""}\n` +
             `opened first: ${camInfo.env || "-"}\n` +
-            `canvas ${canvas.width}×${canvas.height} (${renderScale.toFixed(2)}×) · ${stats.fps.toFixed(0)} fps · jitter ${poseFilter.jitter.toFixed(1)} mm${SMOOTH ? (poseFilter.still ? " · held" : " · moving") : " (no smoothing)"}\n` +
+            `canvas ${canvas.width}×${canvas.height} (${renderScale.toFixed(2)}×) · ${stats.fps.toFixed(0)} fps · jitter ${poseFilter.jitter.toFixed(1)} mm${SMOOTH ? (poseFilter.still ? " · held" : " · moving") + ` · lens ${poseFilter.projJitter.toFixed(2)}% · model ${screenMove.toFixed(1)} px/frame` : " (no smoothing)"}\n` +
             `tracking ${tracking || "-"}${trackingReason ? " (" + trackingReason + ")" : ""} · ${state} · hit ${lastHitType || "-"}\n` +
             `size ${realSizeText || "-"}${window.__splatAr.size && window.__splatAr.size.fix !== 1 ? " (corrected ×" + window.__splatAr.size.fix.toFixed(3) + ")" : ""}`;
         }
