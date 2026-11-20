@@ -105,7 +105,8 @@
   const startBtn = $("start"), hint = $("hint"), dbg = $("dbg");
   const DEBUG = q.has("debug");
   const camMode = q.get("cam") || "main";
-  const isIOS = /iPhone|iPad|iPod/.test(navigator.userAgent) || (navigator.maxTouchPoints > 1 && /Mac/.test(navigator.platform));
+  const isIOS = /iPhone|iPad|iPod/.test(navigator.userAgent) || (navigator.maxTouchPoints > 1 && /Mac/.test(navigator.platform)) ||
+    (navigator.maxTouchPoints > 1 && !/Android/i.test(navigator.userAgent));  // also iOS builds whose user agent hides it
   const iosVersion = (() => { const m = navigator.userAgent.match(/OS (\d+)[_.](\d+)/); return m ? +m[1] + +m[2] / 100 : 0; })();
 
   // ---------------------------------------------------------------------------------------------
@@ -119,7 +120,7 @@
   // back camera's name ("Back Camera" -> "Back Triple Camera", "Caméra arrière" -> "Caméra
   // arrière triple"), so among the cameras whose name fits inside the name of the camera Safari
   // opened for "environment", the one with the shortest name is the main lens.
-  const camInfo = { label: "", size: "", env: "", note: "" };
+  const camInfo = { label: "", size: "", env: "", note: "", calls: 0, wrapped: false };
   const words = (s) => s.toLowerCase().normalize("NFC").split(/[^\p{L}\p{N}]+/u).filter(Boolean);
   const isSubsequence = (a, b) => { let i = 0; for (const ch of b) if (ch === a[i]) i++; return i === a.length; };
   function mainBackCamera(devices, envLabel) {
@@ -156,7 +157,9 @@
       if (settings.facingMode === "user") { stream.getTracks().forEach((t) => t.stop()); throw new Error("front camera"); }
       return stream;
     }
+    camInfo.wrapped = true;
     md.getUserMedia = async (c) => {
+      camInfo.calls++;
       const v = c && c.video;
       if (!v || typeof v !== "object" || wantsFront(v)) return gum(c);
       let video = { ...v, frameRate: { ideal: 30 } };
@@ -565,7 +568,7 @@
   // (an unchanged camera also means Spark does not re-sort the splats, which removes the shimmer).
   // ?smooth=0 turns it off; ?smooth=2 smooths and holds twice as hard (0.5 half as hard).
   const SMOOTH = q.has("smooth") ? Math.max(0, parseFloat(q.get("smooth")) || 0) : 1;
-const HOLD_MM = 3, HOLD_DEG = 0.25;
+const HOLD_MM = 0.8, HOLD_DEG = 0.06;
   const poseFilter = {
     pos: null, quat: null, held: null, heldQ: null, proj: null, projJitter: 0, still: false, speed: 0, turn: 0, last: 0, jitter: 0,
     reset() { this.pos = null; this.held = null; this.proj = null; },
@@ -679,7 +682,10 @@ const HOLD_MM = 3, HOLD_DEG = 0.25;
           screenPrev = px;
         }
         if (DEBUG) {
-          dbg.textContent = `camera: ${camInfo.label || "?"} ${camInfo.size}${camInfo.note ? " (" + camInfo.note + ")" : ""}\n` +
+          const vt = (() => { const v = document.querySelector("video"); const t = v && v.srcObject && v.srcObject.getVideoTracks && v.srcObject.getVideoTracks()[0];
+            if (!t) return "-"; const s = (t.getSettings && t.getSettings()) || {}; return `${t.label} ${s.width || "?"}×${s.height || "?"} ${s.frameRate ? Math.round(s.frameRate) + "fps" : ""} zoom ${s.zoom || "-"}`; })();
+          dbg.textContent = `live camera: ${vt}\nios ${isIOS} ${iosVersion} · lens wrapper ${camInfo.wrapped ? "on" : "off"} (${camInfo.calls} calls)\n` +
+            `camera: ${camInfo.label || "?"} ${camInfo.size}${camInfo.note ? " (" + camInfo.note + ")" : ""}\n` +
             `opened first: ${camInfo.env || "-"}\n` +
             `canvas ${canvas.width}×${canvas.height} (${renderScale.toFixed(2)}×) · ${stats.fps.toFixed(0)} fps · jitter ${poseFilter.jitter.toFixed(1)} mm${SMOOTH ? (poseFilter.still ? " · held" : " · moving") + ` · lens ${poseFilter.projJitter.toFixed(2)}% · model ${screenMove.toFixed(1)} px/frame` : " (no smoothing)"}\n` +
             `tracking ${tracking || "-"}${trackingReason ? " (" + trackingReason + ")" : ""} · ${state} · hit ${lastHitType || "-"}\n` +
