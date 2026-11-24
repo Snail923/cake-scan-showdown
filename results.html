@@ -113,7 +113,7 @@
   <header>
     <span class="eyebrow">Cake Scan Showdown · final results</span>
     <h1>Two pizzas, a cake, a glass of juice and a cocktail</h1>
-    <p>The final capture: one medium pizza (about 30 cm), scanned twice as a Gaussian splat, first plain and then with a ketchup drizzle, with the same setup and camera settings, so the two can be compared side by side, plus a glass of juice, the hardest test because of the clear glass, polished in Blender, a cocktail topped with cream and cashews, and a veggie pizza and a layered mousse cake shot with a full-frame Sony camera instead of a phone. Drag to orbit, pinch or scroll to zoom, and tap <strong>View on your table</strong> on a phone to place it in AR (iPhone and Android).</p>
+    <p>The final capture: one medium pizza (about 30 cm), scanned twice as a Gaussian splat, first plain and then with a ketchup drizzle, with the same setup and camera settings, so the two can be compared side by side, plus a glass of juice, the hardest test because of the clear glass, polished in Blender, a cocktail topped with cream and cashews, and a veggie pizza, a layered mousse cake and a cup of orange juice shot with a full-frame Sony camera instead of a phone. Drag to orbit, pinch or scroll to zoom, and tap <strong>View on your table</strong> on a phone to place it in AR (iPhone and Android).</p>
   </header>
 
   <div class="picker" role="tablist" aria-label="Choose a version"></div>
@@ -189,7 +189,7 @@
   </section>
 
   <footer>
-    <span>Captured on a Samsung Galaxy A23, except the veggie pizza and the mousse cake (Sony A7R V). Splats trained with Brush in OOOSplat and shown with Spark.</span>
+    <span>Captured on a Samsung Galaxy A23, except the veggie pizza, the mousse cake and the orange juice (Sony A7R V). Splats trained with Brush in OOOSplat and shown with Spark.</span>
     <a href="compare.html">Veggie pizza: full resolution vs web →</a>
     <a href="./">See every scan and app →</a>
   </footer>
@@ -226,6 +226,14 @@
               "The camera refocused on every shot, so the photos were grouped by focus distance with one camera model per group; all 200 positions lined up (0.56 px error).",
               "Trained as a Gaussian splat and cleaned by hand in SuperSplat.",
               "The shiny gold board came out as a see-through mirror (a splat can't hold a reflection), so it was rebuilt as a solid gold disc with its tab, at the board's measured size and colour.",
+              "Stands upright so it sits on the table in AR."] },
+    { id: "juice-sony", label: "Orange juice · Sony camera", src: "sony_juice_splat.sog", params: "h=0.12", original: "sony_juice_full.ply", originalSize: "0.2 MB",
+      lead: "A clear plastic cup of orange juice, shot with the full-frame Sony camera.",
+      facts: [["Photos", "61 (1 height)"], ["Splats", "4,122"], ["Size", "0.1 MB"], ["Height", "12 cm"]],
+      notes: ["Sony A7R V with a 50 mm lens at f/16 and flash, on a turntable from two heights; only the upper ring (about 40° above) is used. From the low ring the round, plain cup looks the same at every angle, so those photos could not be placed.",
+              "The camera refocused on every shot, so the photos were grouped by focus distance with one camera model per group; all 61 positions lined up (1.25 px error).",
+              "Trained with fixed colour (few photos) and cleaned by hand in SuperSplat; then the white glow on the cup wall, the sparkle streaks off the rim and the white specks at the base were removed, and long straight splats on the rim were bent to follow its curve.",
+              "Seen from below the photographed angle the clear rim looks softer.",
               "Stands upright so it sits on the table in AR."] },
     { id: "juice", label: "Glass of juice · polished", src: "juice_liquid7_splat.sog", params: "h=0.14&maxel=35&liquid=1&glass=1",
       lead: "A glass of dark red juice, the hardest object in the test: clear glass that photogrammetry cannot capture, kept here as seen in the photos.",
