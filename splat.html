@@ -127,7 +127,8 @@
   const q = new URLSearchParams(location.search);
   const phone = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent) || (navigator.maxTouchPoints > 1 && /Mac/.test(navigator.platform));
   let src = q.get("src") || "jar_splat.sog";
-  if (phone) src = src.replace(/\.sog$/, "_m.sog");
+  const FULL = q.get("full") === "1";  // ?full=1: phones load the full-quality file and draw it at full quality too
+  if (phone && !FULL) src = src.replace(/\.sog$/, "_m.sog");
   const height = parseFloat(q.get("h") || "0.26");  // model height in metres; it stands on y = 0
   const size = Math.max(height, parseFloat(q.get("w") || "0"));  // frame flat models by their width
   // GitHub Pages sends big files slowly (about 50 KB/s in Nov 2026 tests), so on the live site the splats come
@@ -153,7 +154,7 @@
   const camera = new THREE.PerspectiveCamera(40, 1, 0.01, 50);
   // Phones: cut each Gaussian at 2.5 sigma instead of 2.8 (about 20% less area drawn, the cut-off edge is
   // under 5% opacity) and cap a splat's on-screen radius; the same settings as splat-ar.html.
-  scene.add(new SparkRenderer(phone ? { renderer, maxStdDev: 2.5, maxPixelRadius: 256 } : { renderer }));
+  scene.add(new SparkRenderer(phone && !FULL ? { renderer, maxStdDev: 2.5, maxPixelRadius: 256 } : { renderer }));
 
   const target = new THREE.Vector3(0, height * 0.5, 0);
   const dist = size * 2.2;
