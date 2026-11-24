@@ -103,8 +103,8 @@
 
   <header>
     <span class="eyebrow">Cake Scan Showdown · final results</span>
-    <h1>Medium pizza, a glass of juice and a cocktail</h1>
-    <p>The final capture: one medium pizza (about 30 cm), scanned twice as a Gaussian splat, first plain and then with a ketchup drizzle, with the same setup and camera settings, so the two can be compared side by side, plus a glass of juice, the hardest test because of the clear glass, polished in Blender, and a cocktail topped with cream and cashews. Drag to orbit, pinch or scroll to zoom, and tap <strong>View on your table</strong> on a phone to place it in AR (iPhone and Android).</p>
+    <h1>Two pizzas, a glass of juice and a cocktail</h1>
+    <p>The final capture: one medium pizza (about 30 cm), scanned twice as a Gaussian splat, first plain and then with a ketchup drizzle, with the same setup and camera settings, so the two can be compared side by side, plus a glass of juice, the hardest test because of the clear glass, polished in Blender, a cocktail topped with cream and cashews, and a veggie pizza shot with a full-frame Sony camera instead of a phone. Drag to orbit, pinch or scroll to zoom, and tap <strong>View on your table</strong> on a phone to place it in AR (iPhone and Android).</p>
   </header>
 
   <div class="picker" role="tablist" aria-label="Choose a version"></div>
@@ -192,6 +192,13 @@
       notes: ["Same pizza, mat, light and camera settings as the plain version: the only difference is the ketchup.",
               "The ketchup gloss changes as you orbit, which a mesh texture cannot show.",
               "All 179 camera positions lined up on the first try (1.2 px error).",
+              "Levelled so it sits flat on the table in AR."] },
+    { id: "pizza-sony", label: "Veggie pizza · Sony camera", src: "sony_pizza_splat.sog", params: "h=0.015&w=0.2",
+      lead: "A veggie pizza with olives, peppers, corn and tomato, shot with a full-frame Sony camera instead of a phone.",
+      facts: [["Photos", "176 (3 heights)"], ["Splats", "148,272"], ["Size", "4.9 MB (phone 2.8)"], ["Width", "20 cm"]],
+      notes: ["Sony A7R V with a 50 mm lens at f/16 and flash, on a turntable from three heights; 15 photos were left out (no flash, out of focus or taken before the camera moved).",
+              "The camera refocused on every shot, which slightly changes the lens's focal length, so the photos were grouped by focus distance with one camera model per group; then all 176 positions lined up (0.74 px error).",
+              "Trained as a Gaussian splat and cleaned by hand in SuperSplat: the paper and the turntable removed.",
               "Levelled so it sits flat on the table in AR."] },
     { id: "juice", label: "Glass of juice · polished", src: "juice_liquid7_splat.sog", params: "h=0.14&maxel=35&liquid=1&glass=1",
       lead: "A glass of dark red juice, the hardest object in the test: clear glass that photogrammetry cannot capture, kept here as seen in the photos.",
