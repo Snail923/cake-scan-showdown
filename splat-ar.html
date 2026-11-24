@@ -690,7 +690,7 @@ const HOLD_MM = 0.8, HOLD_DEG = 0.06;
         // Lighter splats for phones: cut each Gaussian at 2.5 sigma instead of 2.8 (about 20% less area
         // drawn, the cut-off edge is under 5% opacity) and cap a splat's on-screen radius.
         scene.add(new SparkRenderer(FULL ? { renderer } : { renderer, maxStdDev: 2.5, maxPixelRadius: 256 }));
-        splat = new SplatMesh({ url: SRC_URL, fileType: "pcsogszip" });
+        splat = new SplatMesh({ url: SRC_URL, fileType: /\.ply$/i.test(src) ? "ply" : "pcsogszip" });
         model.add(splat);
         splat.visible = false; shadow.visible = false;  // only the ring shows until the model is placed
         scene.add(model);

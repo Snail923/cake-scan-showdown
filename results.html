@@ -47,17 +47,15 @@
   header p { margin: 0; color: var(--muted); }
   h2 { font: 700 26px/1.1 var(--display); margin: 0 0 14px; letter-spacing: -.01em; }
 
-  /* full-quality switch */
-  .quality { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 14px; margin: -2px 0 14px; }
-  .switch { display: inline-flex; align-items: center; gap: 10px; font: 600 14px/1 var(--body); cursor: pointer; user-select: none; }
-  .switch input { position: absolute; opacity: 0; width: 1px; height: 1px; }
-  .switch .track { position: relative; width: 44px; height: 26px; border-radius: 999px; background: var(--rule); transition: background .2s; flex: none; }
-  .switch .track::after { content: ""; position: absolute; left: 3px; top: 3px; width: 20px; height: 20px; border-radius: 50%; background: var(--surface);
-    box-shadow: 0 1px 3px rgb(0 0 0 / .25); transition: transform .2s; }
-  .switch input:checked + .track { background: var(--accent); }
-  .switch input:checked + .track::after { transform: translateX(18px); }
-  .switch input:focus-visible + .track { outline: 3px solid var(--accent); outline-offset: 2px; }
-  .qnote { font-size: 13px; color: var(--muted); }
+  /* quality choice */
+  .quality { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; margin: -2px 0 14px; }
+  .qlabel { font: 500 12px/1 var(--mono); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+  .qseg { display: inline-flex; padding: 3px; border-radius: 999px; background: var(--surface); border: 1px solid var(--rule); }
+  .qseg button { font: 600 14px/1 var(--body); border: 0; border-radius: 999px; padding: 9px 14px; background: transparent; color: var(--ink); cursor: pointer; }
+  .qseg button small { font: 500 12px/1 var(--mono); opacity: .75; margin-left: 4px; }
+  .qseg button[aria-pressed="true"] { background: var(--accent); color: var(--accent-ink); }
+  .qseg button:disabled { opacity: .4; cursor: not-allowed; }
+  .qnote { font-size: 13px; color: var(--muted); flex-basis: 100%; }
   /* model picker */
   .picker { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 14px; }
   .chip {
@@ -120,8 +118,13 @@
 
   <div class="picker" role="tablist" aria-label="Choose a version"></div>
   <div class="quality">
-    <label class="switch"><input type="checkbox" id="full-q"><span class="track" aria-hidden="true"></span>Full quality</label>
-    <span class="qnote" id="q-note">Phones load a lighter version by default. Switch on to see the full-quality file in 3D and in AR (about twice the download).</span>
+    <span class="qlabel" id="q-label">Quality</span>
+    <div class="qseg" role="group" aria-labelledby="q-label">
+      <button type="button" data-q="standard" aria-pressed="true">Standard</button>
+      <button type="button" data-q="full" aria-pressed="false">Full</button>
+      <button type="button" data-q="original" aria-pressed="false">Original<small id="q-orig-size"></small></button>
+    </div>
+    <span class="qnote" id="q-note"></span>
   </div>
 
   <div class="feature">
@@ -209,7 +212,7 @@
               "The ketchup gloss changes as you orbit, which a mesh texture cannot show.",
               "All 179 camera positions lined up on the first try (1.2 px error).",
               "Levelled so it sits flat on the table in AR."] },
-    { id: "pizza-sony", label: "Veggie pizza · Sony camera", src: "sony_pizza_splat.sog", params: "h=0.015&w=0.2",
+    { id: "pizza-sony", label: "Veggie pizza · Sony camera", src: "sony_pizza_splat.sog", params: "h=0.015&w=0.2", original: "sony_pizza_full.ply", originalSize: "35 MB",
       lead: "A veggie pizza with olives, peppers, corn and tomato, shot with a full-frame Sony camera instead of a phone.",
       facts: [["Photos", "176 (3 heights)"], ["Splats", "148,272"], ["Size", "4.9 MB (phone 2.8)"], ["Width", "20 cm"]],
       notes: ["Sony A7R V with a 50 mm lens at f/16 and flash, on a turntable from three heights; 15 photos were left out (no flash, out of focus or taken before the camera moved).",
@@ -244,12 +247,23 @@
     return b;
   });
 
-  // Full quality: phones load the full .sog (?full=1) in 3D and AR. Remembered on this device.
-  var fullQ = document.getElementById("full-q"), current = null;
-  try { fullQ.checked = localStorage.getItem("fullQuality") === "1"; } catch (e) {}
-  fullQ.addEventListener("change", function () {
-    try { localStorage.setItem("fullQuality", fullQ.checked ? "1" : "0"); } catch (e) {}
-    if (current) show(current, false);
+  // Quality, in 3D and in AR (remembered on this device):
+  //   standard: phones load the lighter _m.sog;  full: the full .sog on phones too (?full=1);
+  //   original: the uncompressed .ply exactly as trained, for dishes that have one (m.original).
+  var QNOTE = {
+    standard: "Phones load a lighter version; computers always get the full web file.",
+    full: "The full web file on phones too, in 3D and in AR (about twice the download).",
+    original: "The uncompressed splat exactly as trained, in 3D and in AR. A large download: best on Wi-Fi, and slow on older phones.",
+    none: "This dish has no original file online; showing the full web file instead."
+  };
+  var quality = "standard", current = null, qButtons = [].slice.call(document.querySelectorAll(".qseg button"));
+  try { quality = localStorage.getItem("quality") || "standard"; } catch (e) {}
+  qButtons.forEach(function (b) {
+    b.addEventListener("click", function () {
+      quality = b.dataset.q;
+      try { localStorage.setItem("quality", quality); } catch (e) {}
+      if (current) show(current, false);
+    });
   });
 
   function text(id, value) { document.getElementById(id).textContent = value; }
@@ -257,6 +271,12 @@
   function show(id, push) {
     var m = MODELS.filter(function (x) { return x.id === id; })[0] || MODELS[0];
     current = m.id;
+    qButtons.forEach(function (b) {
+      b.setAttribute("aria-pressed", String(b.dataset.q === quality));
+      if (b.dataset.q === "original") b.disabled = !m.original;
+    });
+    text("q-orig-size", m.originalSize ? " " + m.originalSize : "");
+    text("q-note", quality === "original" && !m.original ? QNOTE.none : QNOTE[quality]);
     chips.forEach(function (c, i) { c.setAttribute("aria-selected", MODELS[i] === m ? "true" : "false"); });
     text("m-name", m.label);
     text("m-lead", m.lead);
@@ -272,8 +292,8 @@
     } else {
       placeholder.hidden = true; frame.hidden = false;
       frame.title = "3D splat of the " + m.label.toLowerCase();
-      var url = "splat.html?src=" + m.src + "&" + m.params;
-      if (fullQ.checked) url += "&full=1";
+      var q = quality === "original" && !m.original ? "full" : quality;
+      var url = "splat.html?src=" + (q === "original" ? m.original : m.src) + "&" + m.params + (q === "standard" ? "" : "&full=1");
       if (frame.getAttribute("src") !== url) frame.setAttribute("src", url);
     }
     if (push && history.replaceState) history.replaceState(null, "", "#" + m.id);

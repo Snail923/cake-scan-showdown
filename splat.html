@@ -173,7 +173,7 @@
   if (q.get("maxel")) controls.minPolarAngle = Math.PI / 2 - parseFloat(q.get("maxel")) * Math.PI / 180;
   controls.update();
 
-  const splat = new SplatMesh({ url: await splatUrl(src), fileType: "pcsogszip" });
+  const splat = new SplatMesh({ url: await splatUrl(src), fileType: /\.ply$/i.test(src) ? "ply" : "pcsogszip" });
   scene.add(splat);
   // Real size (splat-size.js): measure the splat, scale it to the card's w / h if it is 4-25% off, and keep
   // the label for AR. Then a soft shadow shaped like the object, as a child of the splat so it follows it
