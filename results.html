@@ -112,8 +112,8 @@
 
   <header>
     <span class="eyebrow">Cake Scan Showdown · final results</span>
-    <h1>Two pizzas, a glass of juice and a cocktail</h1>
-    <p>The final capture: one medium pizza (about 30 cm), scanned twice as a Gaussian splat, first plain and then with a ketchup drizzle, with the same setup and camera settings, so the two can be compared side by side, plus a glass of juice, the hardest test because of the clear glass, polished in Blender, a cocktail topped with cream and cashews, and a veggie pizza shot with a full-frame Sony camera instead of a phone. Drag to orbit, pinch or scroll to zoom, and tap <strong>View on your table</strong> on a phone to place it in AR (iPhone and Android).</p>
+    <h1>Two pizzas, a cake, a glass of juice and a cocktail</h1>
+    <p>The final capture: one medium pizza (about 30 cm), scanned twice as a Gaussian splat, first plain and then with a ketchup drizzle, with the same setup and camera settings, so the two can be compared side by side, plus a glass of juice, the hardest test because of the clear glass, polished in Blender, a cocktail topped with cream and cashews, and a veggie pizza and a layered mousse cake shot with a full-frame Sony camera instead of a phone. Drag to orbit, pinch or scroll to zoom, and tap <strong>View on your table</strong> on a phone to place it in AR (iPhone and Android).</p>
   </header>
 
   <div class="picker" role="tablist" aria-label="Choose a version"></div>
@@ -189,7 +189,7 @@
   </section>
 
   <footer>
-    <span>Captured on a Samsung Galaxy A23, except the veggie pizza (Sony A7R V). Splats trained with Brush in OOOSplat and shown with Spark.</span>
+    <span>Captured on a Samsung Galaxy A23, except the veggie pizza and the mousse cake (Sony A7R V). Splats trained with Brush in OOOSplat and shown with Spark.</span>
     <a href="compare.html">Veggie pizza: full resolution vs web →</a>
     <a href="./">See every scan and app →</a>
   </footer>
@@ -219,6 +219,13 @@
               "The camera refocused on every shot, which slightly changes the lens's focal length, so the photos were grouped by focus distance with one camera model per group; then all 176 positions lined up (0.74 px error).",
               "Trained as a Gaussian splat and cleaned by hand in SuperSplat: the paper and the turntable removed.",
               "Levelled so it sits flat on the table in AR."] },
+    { id: "cake-sony", label: "Mousse cake · Sony camera", src: "sony_cake_splat.sog", params: "h=0.068&w=0.1", original: "sony_cake_full.ply", originalSize: "20 MB",
+      lead: "A layered chocolate mousse cake with a glossy chocolate top and a white chocolate pearl, on a gold cake board, shot with the full-frame Sony camera.",
+      facts: [["Photos", "200 (3 heights)"], ["Splats", "85,916"], ["Size", "3.9 MB (phone 1.9)"], ["Width", "10 cm"]],
+      notes: ["Sony A7R V with a 50 mm lens at f/16 and flash, on a turntable from three heights; 50 of 250 photos were left out, most of them black frames where the flash had not recharged.",
+              "The camera refocused on every shot, so the photos were grouped by focus distance with one camera model per group; all 200 positions lined up (0.56 px error).",
+              "Trained as a Gaussian splat and cleaned by hand in SuperSplat, keeping the gold cake board.",
+              "Stands upright so it sits on the table in AR."] },
     { id: "juice", label: "Glass of juice · polished", src: "juice_liquid7_splat.sog", params: "h=0.14&maxel=35&liquid=1&glass=1",
       lead: "A glass of dark red juice, the hardest object in the test: clear glass that photogrammetry cannot capture, kept here as seen in the photos.",
       facts: [["Photos", "118 (2 heights)"], ["Splats", "17,003"], ["Size", "0.8 MB (phone 0.4)"], ["Height", "14 cm"]],
