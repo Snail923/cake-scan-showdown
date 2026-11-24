@@ -1,0 +1,184 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Full Resolution vs Web</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+  :root {
+    --ground: #f5f3f7; --surface: #ffffff; --stage: #ebe7ef; --ink: #1e1b24; --muted: #6b6575;
+    --rule: #e0dbe6; --accent: #a8285f; --accent-ink: #ffffff; --accent-soft: #f6e3ec;
+    --display: "Bricolage Grotesque", "Avenir Next", "Segoe UI", sans-serif;
+    --body: "IBM Plex Sans", "Segoe UI", system-ui, sans-serif;
+    --mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      color-scheme: dark;
+      --ground: #141218; --surface: #1c1a21; --stage: #24212a; --ink: #eeeaf2; --muted: #a39cad;
+      --rule: #322e39; --accent: #e46a9e; --accent-ink: #1a0d14; --accent-soft: #3a1d2b;
+    }
+  }
+  :root[data-theme="dark"] {
+    color-scheme: dark;
+    --ground: #141218; --surface: #1c1a21; --stage: #24212a; --ink: #eeeaf2; --muted: #a39cad;
+    --rule: #322e39; --accent: #e46a9e; --accent-ink: #1a0d14; --accent-soft: #3a1d2b;
+  }
+  * { box-sizing: border-box; }
+  [hidden] { display: none !important; }
+  body { margin: 0; background: var(--ground); color: var(--ink); font: 15px/1.55 var(--body); }
+  a { color: var(--accent); }
+  :focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+  .wrap { max-width: 1280px; margin: 0 auto; padding: 28px 24px 40px; }
+  .crumb { font: 500 13px/1 var(--mono); text-decoration: none; display: inline-flex; gap: 6px; margin-bottom: 22px; }
+  .eyebrow { font: 500 12px/1 var(--mono); letter-spacing: .08em; text-transform: uppercase; color: var(--accent); }
+  h1 { font: 700 clamp(28px, 4.5vw, 42px)/1.05 var(--display); margin: 10px 0 12px; letter-spacing: -.02em; text-wrap: balance; }
+  header p { margin: 0; max-width: 760px; color: var(--muted); }
+  .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 24px; }
+  @media (max-width: 760px) { .grid { grid-template-columns: 1fr; } .wrap { padding: 20px 16px 32px; } }
+  .panel { background: var(--surface); border: 1px solid var(--rule); border-radius: 16px; overflow: hidden; }
+  .bar { display: flex; align-items: center; min-height: 58px; justify-content: space-between; gap: 12px; padding: 12px 16px; border-bottom: 1px solid var(--rule); flex-wrap: wrap; }
+  .bar h2 { font: 700 19px/1.2 var(--display); margin: 0; }
+  .bar .size { font: 500 13px/1 var(--mono); color: var(--muted); }
+  .stage { position: relative; aspect-ratio: 4 / 3; background: var(--stage); touch-action: none; }
+  .stage canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+  .status { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); font: 500 13px/1.4 var(--mono); color: var(--muted); text-align: center; }
+  .seg { display: inline-flex; padding: 3px; border-radius: 999px; background: var(--stage); }
+  .seg button { font: 600 13px/1 var(--body); border: 0; border-radius: 999px; padding: 7px 12px; background: transparent; color: var(--ink); cursor: pointer; }
+  .seg button[aria-pressed="true"] { background: var(--accent); color: var(--accent-ink); }
+  .notes { margin-top: 20px; display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 12px; }
+  .note { background: var(--surface); border: 1px solid var(--rule); border-radius: 12px; padding: 14px 16px; font-size: 14px; }
+  .note b { display: block; margin-bottom: 4px; }
+  .hintline { margin-top: 12px; font-size: 13px; color: var(--muted); }
+</style>
+<script type="importmap">
+  {
+    "imports": {
+      "three": "https://cdn.jsdelivr.net/npm/three@0.180.0/build/three.module.js",
+      "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.180.0/examples/jsm/",
+      "@sparkjsdev/spark": "https://cdn.jsdelivr.net/npm/@sparkjsdev/spark@2.4.0/dist/spark.module.js"
+    }
+  }
+</script>
+</head>
+<body>
+<div class="wrap">
+  <a class="crumb" href="results.html">← Final results</a>
+  <header>
+    <span class="eyebrow">Quality check · full resolution vs web</span>
+    <h1 id="title">Veggie pizza: the full splat next to the web version</h1>
+    <p>Left: the cleaned splat exactly as trained, uncompressed, with every splat and all its colour detail.
+      Right: the compressed file the menu and AR viewers load. Both views share one camera, so drag either side
+      to orbit both, and scroll or pinch to zoom in on the toppings.</p>
+  </header>
+
+  <div class="grid">
+    <section class="panel">
+      <div class="bar"><h2>Full resolution</h2><span class="size" id="full-size">PLY</span></div>
+      <div class="stage" id="stage-full"><span class="status" id="status-full">Loading the full splat…</span></div>
+    </section>
+    <section class="panel">
+      <div class="bar">
+        <h2>Web version</h2>
+        <div class="seg" role="group" aria-label="Web file">
+          <button type="button" id="b-desktop" aria-pressed="true">Desktop</button>
+          <button type="button" id="b-phone" aria-pressed="false">Phone</button>
+        </div>
+        <span class="size" id="web-size">SOG</span>
+      </div>
+      <div class="stage" id="stage-web"><span class="status" id="status-web">Loading the web file…</span></div>
+    </section>
+  </div>
+  <p class="hintline">The full splat is a large download and needs a lot of memory; a computer shows it best.</p>
+
+  <div class="notes">
+    <div class="note"><b>Full resolution (PLY)</b>Every value stored as a full 32-bit number, including all view-dependent colour (spherical harmonics, degree 3).</div>
+    <div class="note"><b>Web, desktop (SOG)</b>Same splats, values rounded and packed into images, with the largest colour palette the format allows.</div>
+    <div class="note"><b>Web, phone (SOG)</b>Keeps only the first band of view-dependent colour, so it is about half the size; shine changes less as you orbit.</div>
+  </div>
+</div>
+
+<script type="module">
+  import * as THREE from "three";
+  import { OrbitControls } from "three/addons/controls/OrbitControls.js";
+  import { SparkRenderer, SplatMesh } from "@sparkjsdev/spark";
+
+  const q = new URLSearchParams(location.search);
+  const FULL = q.get("full") || "sony_pizza_full.ply";
+  const WEB = q.get("web") || "sony_pizza_splat.sog";
+  const height = parseFloat(q.get("h") || "0.015"), width = parseFloat(q.get("w") || "0.2");
+  if (q.get("name")) { document.getElementById("title").textContent = q.get("name") + ": the full splat next to the web version"; document.title = q.get("name") + " · full vs web"; }
+  const size = Math.max(height, width);
+
+  // One camera for both views, so they always show the same angle.
+  const camera = new THREE.PerspectiveCamera(40, 4 / 3, 0.005, 50);
+  const target = new THREE.Vector3(0, height * 0.5, 0);
+  const dist = size * 1.9;
+  camera.position.set(dist * 0.55, height * 0.5 + dist * 0.55, dist * 0.7);
+  camera.lookAt(target);
+
+  const fmtMB = (n) => (n / 1e6).toFixed(1) + " MB";
+  async function sizeOf(url) {
+    try { const r = await fetch(url, { method: "HEAD" }); const n = +r.headers.get("content-length"); return n ? fmtMB(n) : ""; } catch (e) { return ""; }
+  }
+
+  function makeView(stageId) {
+    const stage = document.getElementById(stageId);
+    const renderer = new THREE.WebGLRenderer({ antialias: false, alpha: true });
+    renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+    stage.prepend(renderer.domElement);
+    const scene = new THREE.Scene();
+    scene.add(new SparkRenderer({ renderer }));
+    const controls = new OrbitControls(camera, renderer.domElement);
+    controls.target.copy(target);
+    controls.enableDamping = true;
+    controls.minDistance = size * 0.25; controls.maxDistance = size * 6;
+    controls.maxPolarAngle = Math.PI * 0.472;  // stays above the table, like the main viewer
+    const view = { stage, renderer, scene, controls, mesh: null };
+    new ResizeObserver(() => { const r = stage.getBoundingClientRect(); renderer.setSize(r.width, r.height, false); }).observe(stage);
+    return view;
+  }
+  const views = { full: makeView("stage-full"), web: makeView("stage-web") };
+
+  async function load(view, url, fileType, statusId) {
+    const status = document.getElementById(statusId);
+    status.hidden = false; status.textContent = "Loading…";
+    if (view.mesh) { view.scene.remove(view.mesh); view.mesh.dispose && view.mesh.dispose(); view.mesh = null; }
+    const mesh = new SplatMesh({ url, fileType });
+    view.scene.add(mesh); view.mesh = mesh;
+    try { await mesh.initialized; status.hidden = true; }
+    catch (e) { console.error(e); status.textContent = "Could not load " + url; }
+  }
+
+  load(views.full, FULL, "ply", "status-full");
+  sizeOf(FULL).then((s) => { document.getElementById("full-size").textContent = "PLY · " + (s || "uncompressed"); });
+
+  const webFile = (phone) => (phone ? WEB.replace(/\.sog$/, "_m.sog") : WEB);
+  async function loadWeb(phone) {
+    document.getElementById("b-desktop").setAttribute("aria-pressed", String(!phone));
+    document.getElementById("b-phone").setAttribute("aria-pressed", String(phone));
+    const f = webFile(phone);
+    sizeOf(f).then((s) => { document.getElementById("web-size").textContent = "SOG · " + s; });
+    await load(views.web, f, "pcsogszip", "status-web");
+  }
+  document.getElementById("b-desktop").addEventListener("click", () => loadWeb(false));
+  document.getElementById("b-phone").addEventListener("click", () => loadWeb(true));
+  loadWeb(false);
+
+  // Both controls drive the same camera; update both every frame so damping stays in step.
+  function frame() {
+    views.full.controls.update(); views.web.controls.update();
+    for (const v of Object.values(views)) {
+      const c = v.renderer.domElement;
+      camera.aspect = c.width / c.height || 4 / 3; camera.updateProjectionMatrix();
+      v.renderer.render(v.scene, camera);
+    }
+    requestAnimationFrame(frame);
+  }
+  frame();
+</script>
+</body>
+</html>
