@@ -27,8 +27,11 @@
 </style>
 </head>
 <body>
-<!-- Full-frame mesh viewer for results.html: mesh.html?src=model.glb[&ios=model.usdz][&orbit=30deg 70deg][&full=1]
-     Phones load the lighter <name>_m.glb unless full=1. iOS opens AR Quick Look with the USDZ; Android uses Scene Viewer. -->
+<!-- Full-frame mesh viewer for results.html: mesh.html?src=model.glb[&ios=model.usdz][&orbit=30deg 70deg][&full=1][&studio=1]
+     Phones load the lighter <name>_m.glb unless full=1. iOS opens AR Quick Look with the USDZ; Android uses Scene Viewer.
+     studio=1: lit by mesh_env.hdr (softboxes, tools/studio_env.py) on a solid skybox in the stage colour instead of the CSS
+     background, for models with clear (transmission) materials: they only show what the renderer drew behind them,
+     and on a transparent canvas that is white. -->
 <model-viewer id="mv" camera-controls touch-action="none" shadow-intensity="1" exposure="1.05"
   ar ar-modes="webxr scene-viewer quick-look" ar-placement="floor" ar-scale="auto" interaction-prompt="none">
   <button slot="ar-button" class="ar-btn">View on your table</button>
@@ -54,6 +57,12 @@
       if (ios) { var link = document.getElementById("ios-ar"); link.href = ios; link.hidden = false; }
     } else if (android) {
       mv.setAttribute("ar-modes", "scene-viewer webxr");
+    }
+    if (p.get("studio") === "1") {
+      var dark = window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)");
+      var sky = function () { mv.setAttribute("skybox-image", dark && dark.matches ? "mesh_bg_dark.png" : "mesh_bg_light.png"); };
+      mv.setAttribute("environment-image", "mesh_env.hdr");
+      sky(); if (dark && dark.addEventListener) dark.addEventListener("change", sky);
     }
     mv.setAttribute("src", src);
   })();
