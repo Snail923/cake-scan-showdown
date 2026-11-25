@@ -314,7 +314,7 @@
   function text(id, value) { document.getElementById(id).textContent = value; }
 
   // Mesh models (m.mesh): shown with model-viewer on this page, not in an iframe, so that View on your table
-  // can open Scene Viewer (Android) or AR Quick Look (iOS, m.ios). m.studio: studio lighting on a solid
+  // can start AR: WebXR in the browser (Android), else Scene Viewer, or AR Quick Look (iOS, m.ios). m.studio: studio lighting on a solid
   // stage-colour skybox, for clear (transmission) materials, which show white over a transparent canvas.
   var meshMv = document.getElementById("mesh-mv"), mvLoaded = false;
   var phone = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
@@ -329,7 +329,7 @@
     var src = phone && q === "standard" ? m.mesh.replace(/\.glb$/, "_m.glb") : m.mesh;
     meshMv.setAttribute("alt", m.lead);
     meshMv.setAttribute("camera-orbit", (m.orbit || "30deg 70deg") + " auto");
-    meshMv.setAttribute("ar-modes", /Android/i.test(navigator.userAgent) ? "scene-viewer webxr" : "webxr scene-viewer quick-look");
+    meshMv.setAttribute("ar-modes", "webxr scene-viewer quick-look");   // WebXR first: in-browser AR like the splats (Scene Viewer bounced straight back on a Samsung phone)
     if (m.ios) meshMv.setAttribute("ios-src", m.ios); else meshMv.removeAttribute("ios-src");
     if (m.studio) {
       meshMv.setAttribute("environment-image", "mesh_env.hdr");
