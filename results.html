@@ -236,13 +236,13 @@
               "The juice near the base was see-through once the paper behind it was removed, so the lower cup and its bottom got a solid juice layer coloured from the juice around it.",
               "Seen from below the photographed angle the clear rim looks softer.",
               "Stands upright so it sits on the table in AR."] },
-    { id: "juice-blender", label: "Orange juice · modelled in Blender", mesh: "blender_juice_cup.glb", ios: "blender_juice_cup.usdz", orbit: "30deg 70deg", studio: true,
+    { id: "juice-blender", label: "Orange juice · modelled in Blender", mesh: "blender_juice_cup.glb", ios: "blender_juice_cup.usdz", orbit: "30deg 70deg", studio: true, phoneFull: true,
       lead: "The same cup of orange juice, modelled by hand in Blender instead of scanned, and served cold: a clear plastic cup misted with condensation, water drops on the outside and the juice inside, built to the real cup's size and shape from the Sony photos.",
-      facts: [["Built from", "Sony photos"], ["Triangles", "217,880"], ["Size", "7.9 MB (phone 5.4)"], ["Height", "12 cm"]],
+      facts: [["Built from", "Sony photos"], ["Triangles", "217,880"], ["Size", "7.9 MB"], ["Height", "12 cm"]],
       notes: ["A mesh, not a splat: shape and colours were measured from the side and top photos of the cup, then built as a 3D model.",
               "The cup is 12 cm tall with a 9.8 cm rolled rim, a 5.9 cm base and a small step ring near the bottom; the juice sits 10 cm high: a clear, light yellow liquid with a mirror-smooth surface, so from above you look down through it to the bottom of the cup.",
               "Cold-cup condensation below the juice line: about 1,850 small modelled water drops that catch the light and show the juice behind them, and a fine frosty mist of tiny droplets on the plastic.",
-              "The plastic is clear, with reflections, and shown under studio lights. Phones get a simpler see-through plastic (some phone graphics chips draw the glass-like version white), skip the smallest drops and use half-size textures.",
+              "The plastic is clear, with reflections, and shown under studio lights. Phones load the same full model as computers.",
               "Opens in AR Quick Look on iPhone and Scene Viewer on Android, at real size."] },
     { id: "juice-higgsfield", label: "Orange juice · Higgsfield", mesh: "higgsfield_juice_cup.glb", ios: "higgsfield_juice_cup.usdz", orbit: "30deg 70deg",
       lead: "The same cup of orange juice made with Higgsfield instead of scanned: a clear plastic cup with a rolled rim and textured juice inside.",
@@ -328,7 +328,7 @@
       if (m.mesh) {
         frame.title = "3D model of the " + m.label.toLowerCase();
         url = "mesh.html?src=" + m.mesh + (m.ios ? "&ios=" + m.ios : "") + "&orbit=" + encodeURIComponent(m.orbit || "30deg 70deg")
-          + "&alt=" + encodeURIComponent(m.lead) + (m.studio ? "&studio=1" : "") + (q === "standard" ? "" : "&full=1");
+          + "&alt=" + encodeURIComponent(m.lead) + (m.studio ? "&studio=1" : "") + (q === "standard" && !m.phoneFull ? "" : "&full=1");
       } else {
         frame.title = "3D splat of the " + m.label.toLowerCase();
         url = "splat.html?src=" + (q === "original" ? m.original : m.src) + "&" + m.params + (q === "standard" ? "" : "&full=1");
