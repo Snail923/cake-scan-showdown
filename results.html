@@ -71,6 +71,14 @@
   .stage { position: relative; background: var(--stage); aspect-ratio: 1 / 1; }
   @media (min-width: 900px) { .stage { aspect-ratio: auto; min-height: 560px; } }
   .stage iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; }
+  /* mesh models: model-viewer on the page itself, so View on your table can launch Scene Viewer / Quick Look
+     (phone browsers block that from an iframe) */
+  .stage model-viewer { position: absolute; inset: 0; width: 100%; height: 100%; background: var(--stage); --poster-color: transparent; --progress-bar-color: var(--accent); }
+  .stage .ar-btn { position: absolute; left: 50%; bottom: 14px; transform: translateX(-50%); font: 600 14px/1 var(--body); border: 0; border-radius: 999px;
+    padding: 11px 16px; background: var(--accent); color: var(--accent-ink); cursor: pointer; display: inline-flex; gap: 8px; align-items: center;
+    box-shadow: 0 4px 14px rgb(0 0 0 / .18); white-space: nowrap; }
+  .stage .no-ar { position: absolute; left: 12px; right: 12px; bottom: 12px; text-align: center; font: 12px/1.35 var(--mono); color: var(--muted); }
+  .stage model-viewer.can-ar .no-ar { display: none; }
   .placeholder { position: absolute; inset: 0; display: grid; place-content: center; gap: 10px; text-align: center; padding: 24px; color: var(--muted); }
   .placeholder strong { font: 700 22px/1.2 var(--display); color: var(--ink); }
 
@@ -130,6 +138,11 @@
   <div class="feature">
     <div class="stage">
       <iframe id="viewer" title="3D viewer" allow="xr-spatial-tracking; fullscreen" hidden></iframe>
+      <model-viewer id="mesh-mv" camera-controls touch-action="pan-y" shadow-intensity="1" exposure="1.05" interaction-prompt="none"
+        ar ar-placement="floor" ar-scale="fixed" hidden>
+        <button slot="ar-button" class="ar-btn"><img src="ar-glyph.png" alt="" width="20" height="20">View on your table</button>
+        <span class="no-ar">AR opens on a phone</span>
+      </model-viewer>
       <div class="placeholder" id="placeholder" hidden>
         <strong>Being captured</strong>
         <span>Reference only for now: this dish is being captured. The details on the right describe the planned capture; the 3D splat will appear here once it is trained and cleaned.</span>
@@ -300,6 +313,35 @@
 
   function text(id, value) { document.getElementById(id).textContent = value; }
 
+  // Mesh models (m.mesh): shown with model-viewer on this page, not in an iframe, so that View on your table
+  // can open Scene Viewer (Android) or AR Quick Look (iOS, m.ios). m.studio: studio lighting on a solid
+  // stage-colour skybox, for clear (transmission) materials, which show white over a transparent canvas.
+  var meshMv = document.getElementById("mesh-mv"), mvLoaded = false;
+  var phone = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+  var darkQ = window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)");
+  function showMesh(m, q) {
+    if (!mvLoaded) {
+      mvLoaded = true;
+      var sc = document.createElement("script"); sc.type = "module";
+      sc.src = "https://cdn.jsdelivr.net/npm/@google/model-viewer@4.0.0/dist/model-viewer.min.js";
+      document.head.appendChild(sc);
+    }
+    var src = phone && q === "standard" ? m.mesh.replace(/\.glb$/, "_m.glb") : m.mesh;
+    meshMv.setAttribute("alt", m.lead);
+    meshMv.setAttribute("camera-orbit", (m.orbit || "30deg 70deg") + " auto");
+    meshMv.setAttribute("ar-modes", /Android/i.test(navigator.userAgent) ? "scene-viewer webxr" : "webxr scene-viewer quick-look");
+    if (m.ios) meshMv.setAttribute("ios-src", m.ios); else meshMv.removeAttribute("ios-src");
+    if (m.studio) {
+      meshMv.setAttribute("environment-image", "mesh_env.hdr");
+      meshMv.setAttribute("skybox-image", darkQ && darkQ.matches ? "mesh_bg_dark.png" : "mesh_bg_light.png");
+    } else { meshMv.removeAttribute("environment-image"); meshMv.removeAttribute("skybox-image"); }
+    if (meshMv.getAttribute("src") !== src) meshMv.setAttribute("src", src);
+    meshMv.hidden = false;
+  }
+  function hideMesh() { meshMv.hidden = true; meshMv.removeAttribute("src"); }
+  meshMv.addEventListener("load", function () { if (meshMv.canActivateAR) meshMv.classList.add("can-ar"); else meshMv.classList.remove("can-ar"); });
+  if (darkQ && darkQ.addEventListener) darkQ.addEventListener("change", function () { if (current) show(current, false); });
+
   function show(id, push) {
     var m = MODELS.filter(function (x) { return x.id === id; })[0] || MODELS[0];
     current = m.id;
@@ -322,18 +364,17 @@
     if (m.soon) {
       frame.hidden = true; frame.removeAttribute("src"); placeholder.hidden = false;
     } else {
-      placeholder.hidden = true; frame.hidden = false;
+      placeholder.hidden = true;
       var q = quality === "original" && !m.original ? "full" : quality;
-      var url;
       if (m.mesh) {
-        frame.title = "3D model of the " + m.label.toLowerCase();
-        url = "mesh.html?src=" + m.mesh + (m.ios ? "&ios=" + m.ios : "") + "&orbit=" + encodeURIComponent(m.orbit || "30deg 70deg")
-          + "&alt=" + encodeURIComponent(m.lead) + "&title=" + encodeURIComponent(m.label) + (m.studio ? "&studio=1" : "") + (q === "standard" && !m.phoneFull ? "" : "&full=1");
+        frame.hidden = true; frame.removeAttribute("src");
+        showMesh(m, q === "standard" && !m.phoneFull ? "standard" : "full");
       } else {
+        hideMesh(); frame.hidden = false;
         frame.title = "3D splat of the " + m.label.toLowerCase();
-        url = "splat.html?src=" + (q === "original" ? m.original : m.src) + "&" + m.params + (q === "standard" ? "" : "&full=1");
+        var url = "splat.html?src=" + (q === "original" ? m.original : m.src) + "&" + m.params + (q === "standard" ? "" : "&full=1");
+        if (frame.getAttribute("src") !== url) frame.setAttribute("src", url);
       }
-      if (frame.getAttribute("src") !== url) frame.setAttribute("src", url);
     }
     if (push && history.replaceState) history.replaceState(null, "", "#" + m.id);
   }
