@@ -71,14 +71,6 @@
   .stage { position: relative; background: var(--stage); aspect-ratio: 1 / 1; }
   @media (min-width: 900px) { .stage { aspect-ratio: auto; min-height: 560px; } }
   .stage iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; }
-  /* mesh models: model-viewer on the page itself, so View on your table can launch Scene Viewer / Quick Look
-     (phone browsers block that from an iframe) */
-  .stage model-viewer { position: absolute; inset: 0; width: 100%; height: 100%; background: var(--stage); --poster-color: transparent; --progress-bar-color: var(--accent); }
-  .stage .ar-btn { position: absolute; left: 50%; bottom: 14px; transform: translateX(-50%); font: 600 14px/1 var(--body); border: 0; border-radius: 999px;
-    padding: 11px 16px; background: var(--accent); color: var(--accent-ink); cursor: pointer; display: inline-flex; gap: 8px; align-items: center;
-    box-shadow: 0 4px 14px rgb(0 0 0 / .18); white-space: nowrap; }
-  .stage .no-ar { position: absolute; left: 12px; right: 12px; bottom: 12px; text-align: center; font: 12px/1.35 var(--mono); color: var(--muted); }
-  .stage model-viewer.can-ar .no-ar { display: none; }
   .placeholder { position: absolute; inset: 0; display: grid; place-content: center; gap: 10px; text-align: center; padding: 24px; color: var(--muted); }
   .placeholder strong { font: 700 22px/1.2 var(--display); color: var(--ink); }
 
@@ -138,11 +130,6 @@
   <div class="feature">
     <div class="stage">
       <iframe id="viewer" title="3D viewer" allow="xr-spatial-tracking; fullscreen" hidden></iframe>
-      <model-viewer id="mesh-mv" camera-controls touch-action="pan-y" shadow-intensity="1" exposure="1.05" interaction-prompt="none"
-        ar ar-placement="floor" ar-scale="fixed" hidden>
-        <button slot="ar-button" class="ar-btn"><img src="ar-glyph.png" alt="" width="20" height="20">View on your table</button>
-        <span class="no-ar">AR opens on a phone</span>
-      </model-viewer>
       <div class="placeholder" id="placeholder" hidden>
         <strong>Being captured</strong>
         <span>Reference only for now: this dish is being captured. The details on the right describe the planned capture; the 3D splat will appear here once it is trained and cleaned.</span>
@@ -250,14 +237,14 @@
               "The bottom and the juice surface got a solid juice layer, so the cup no longer looks see-through against a dark background.",
               "Seen from below the photographed angle the clear rim looks softer.",
               "Stands upright so it sits on the table in AR."] },
-    { id: "juice-blender", label: "Orange juice · modelled in Blender", mesh: "blender_juice_cup.glb", ios: "blender_juice_cup.usdz", orbit: "30deg 70deg", studio: true, phoneFull: true,
+    { id: "juice-blender", label: "Orange juice · modelled in Blender", mesh: "blender_juice_cup.glb", ios: "blender_juice_cup.usdz", h: 0.12, phoneFull: true,
       lead: "The same cup of orange juice, modelled by hand in Blender instead of scanned: a clear plastic cup and the juice inside, built to the real cup's size and shape from the Sony photos.",
       facts: [["Built from", "Sony photos"], ["Triangles", "134,560"], ["Size", "3.1 MB"], ["Height", "12 cm"]],
       notes: ["A mesh, not a splat: shape and colours were measured from the side and top photos of the cup, then built as a 3D model.",
               "The cup is 12 cm tall with a 9.8 cm rolled rim, a 5.9 cm base and a small step ring near the bottom; the juice sits 10 cm high: a cloudy yellow-orange liquid like the real juice, slightly see-through, with a mirror-smooth surface.",
               "The plastic is clear, with reflections, and shown under studio lights. Phones load the same full model as computers.",
               "Opens in AR Quick Look on iPhone and Scene Viewer on Android, at real size."] },
-    { id: "juice-higgsfield", label: "Orange juice · Higgsfield", mesh: "higgsfield_juice_cup.glb", ios: "higgsfield_juice_cup.usdz", orbit: "30deg 70deg",
+    { id: "juice-higgsfield", label: "Orange juice · Higgsfield", mesh: "higgsfield_juice_cup.glb", ios: "higgsfield_juice_cup.usdz", h: 0.117,
       lead: "The same cup of orange juice made with Higgsfield instead of scanned: a clear plastic cup with a rolled rim and textured juice inside.",
       facts: [["Made with", "Higgsfield"], ["Triangles", "65,280"], ["Size", "5.0 MB (phone 1.6)"], ["Height", "11.7 cm"]],
       notes: ["A mesh, not a splat: five parts (clear PET cup, rim bead, juice, juice surface and the residue on the wall), with image textures.",
@@ -313,35 +300,6 @@
 
   function text(id, value) { document.getElementById(id).textContent = value; }
 
-  // Mesh models (m.mesh): shown with model-viewer on this page, not in an iframe, so that View on your table
-  // can start AR: WebXR in the browser (Android), else Scene Viewer, or AR Quick Look (iOS, m.ios). m.studio: studio lighting on a solid
-  // stage-colour skybox, for clear (transmission) materials, which show white over a transparent canvas.
-  var meshMv = document.getElementById("mesh-mv"), mvLoaded = false;
-  var phone = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
-  var darkQ = window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)");
-  function showMesh(m, q) {
-    if (!mvLoaded) {
-      mvLoaded = true;
-      var sc = document.createElement("script"); sc.type = "module";
-      sc.src = "https://cdn.jsdelivr.net/npm/@google/model-viewer@4.0.0/dist/model-viewer.min.js";
-      document.head.appendChild(sc);
-    }
-    var src = phone && q === "standard" ? m.mesh.replace(/\.glb$/, "_m.glb") : m.mesh;
-    meshMv.setAttribute("alt", m.lead);
-    meshMv.setAttribute("camera-orbit", (m.orbit || "30deg 70deg") + " auto");
-    meshMv.setAttribute("ar-modes", "webxr scene-viewer quick-look");   // WebXR first: in-browser AR like the splats (Scene Viewer bounced straight back on a Samsung phone)
-    if (m.ios) meshMv.setAttribute("ios-src", m.ios); else meshMv.removeAttribute("ios-src");
-    if (m.studio) {
-      meshMv.setAttribute("environment-image", "mesh_env.hdr");
-      meshMv.setAttribute("skybox-image", darkQ && darkQ.matches ? "mesh_bg_dark.png" : "mesh_bg_light.png");
-    } else { meshMv.removeAttribute("environment-image"); meshMv.removeAttribute("skybox-image"); }
-    if (meshMv.getAttribute("src") !== src) meshMv.setAttribute("src", src);
-    meshMv.hidden = false;
-  }
-  function hideMesh() { meshMv.hidden = true; meshMv.removeAttribute("src"); }
-  meshMv.addEventListener("load", function () { if (meshMv.canActivateAR) meshMv.classList.add("can-ar"); else meshMv.classList.remove("can-ar"); });
-  if (darkQ && darkQ.addEventListener) darkQ.addEventListener("change", function () { if (current) show(current, false); });
-
   function show(id, push) {
     var m = MODELS.filter(function (x) { return x.id === id; })[0] || MODELS[0];
     current = m.id;
@@ -366,15 +324,16 @@
     } else {
       placeholder.hidden = true;
       var q = quality === "original" && !m.original ? "full" : quality;
-      if (m.mesh) {
-        frame.hidden = true; frame.removeAttribute("src");
-        showMesh(m, q === "standard" && !m.phoneFull ? "standard" : "full");
+      frame.hidden = false;
+      var url;
+      if (m.mesh) {  // GLB meshes use the same viewer and AR as the splats (splat.html mesh mode)
+        frame.title = "3D model of the " + m.label.toLowerCase();
+        url = "splat.html?src=" + m.mesh + "&h=" + m.h + (m.ios ? "&ios=" + m.ios : "") + (q === "standard" && !m.phoneFull ? "" : "&full=1");
       } else {
-        hideMesh(); frame.hidden = false;
         frame.title = "3D splat of the " + m.label.toLowerCase();
-        var url = "splat.html?src=" + (q === "original" ? m.original : m.src) + "&" + m.params + (q === "standard" ? "" : "&full=1");
-        if (frame.getAttribute("src") !== url) frame.setAttribute("src", url);
+        url = "splat.html?src=" + (q === "original" ? m.original : m.src) + "&" + m.params + (q === "standard" ? "" : "&full=1");
       }
+      if (frame.getAttribute("src") !== url) frame.setAttribute("src", url);
     }
     if (push && history.replaceState) history.replaceState(null, "", "#" + m.id);
   }
