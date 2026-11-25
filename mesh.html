@@ -28,14 +28,13 @@
 </head>
 <body>
 <!-- Full-frame mesh viewer for results.html: mesh.html?src=model.glb[&ios=model.usdz][&orbit=30deg 70deg][&full=1][&studio=1]
-     Phones load the lighter <name>_m.glb unless full=1. iOS opens AR Quick Look with the USDZ; Android uses Scene Viewer.
+     Phones load the lighter <name>_m.glb unless full=1. View on your table: Android opens Scene Viewer, iOS opens AR
+     Quick Look with the USDZ, both from the top page (an iframe may not launch them).
      studio=1: lit by mesh_env.hdr (softboxes, tools/studio_env.py) on a solid skybox in the stage colour instead of the CSS
      background, for models with clear (transmission) materials: they only show what the renderer drew behind them,
      and on a transparent canvas that is white. -->
-<model-viewer id="mv" camera-controls touch-action="none" shadow-intensity="1" exposure="1.05"
-  ar ar-modes="webxr scene-viewer quick-look" ar-placement="floor" ar-scale="auto" interaction-prompt="none">
-  <button slot="ar-button" class="ar-btn">View on your table</button>
-  <a class="ar-btn" id="ios-ar" rel="ar" hidden><img src="ar-glyph.png" alt="" width="20" height="20">View on your table</a>
+<model-viewer id="mv" camera-controls touch-action="none" shadow-intensity="1" exposure="1.05" interaction-prompt="none">
+  <a class="ar-btn" id="ar-go" target="_top" hidden><img src="ar-glyph.png" alt="" width="20" height="20">View on your table</a>
   <span class="no-ar">AR opens on a phone</span>
 </model-viewer>
 <script>
@@ -51,12 +50,21 @@
     if ((isIOS || android) && p.get("full") !== "1") src = src.replace(/\.glb$/, "_m.glb");
     mv.setAttribute("camera-orbit", (p.get("orbit") || "30deg 70deg") + " auto");
     mv.setAttribute("alt", p.get("alt") || "3D model");
-    if (isIOS) {
-      mv.removeAttribute("ar");
-      mv.dataset.arOk = "";
-      if (ios) { var link = document.getElementById("ios-ar"); link.href = ios; link.hidden = false; }
-    } else if (android) {
-      mv.setAttribute("ar-modes", "scene-viewer webxr");
+    // AR is opened by the top page, not this iframe: phone browsers block a frame from launching
+    // Scene Viewer (an Android app intent) or Quick Look, so model-viewer's own AR button did nothing.
+    var go = document.getElementById("ar-go");
+    var abs = function (f) { return new URL(f, location.href).href; };
+    var page = window.top === window ? location.href : document.referrer || location.href;
+    try { page = window.top.location.href; } catch (e) {}
+    if (android) {
+      go.href = "intent://arvr.google.com/scene-viewer/1.2?file=" + encodeURIComponent(abs(src)) +
+        "&mode=ar_preferred&resizable=false&title=" + encodeURIComponent(p.get("title") || "3D model") +
+        "#Intent;scheme=https;package=com.google.android.googlequicksearchbox;action=android.intent.action.VIEW;" +
+        "S.browser_fallback_url=" + encodeURIComponent(page) + ";end;";
+      go.hidden = false; mv.dataset.arOk = "";
+    } else if (isIOS && ios) {
+      go.href = abs(ios); go.setAttribute("rel", "ar");   // Safari opens a .usdz in AR Quick Look
+      go.hidden = false; mv.dataset.arOk = "";
     }
     if (p.get("studio") === "1") {
       var dark = window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)");
