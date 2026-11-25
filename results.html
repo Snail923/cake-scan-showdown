@@ -129,7 +129,7 @@
 
   <div class="feature">
     <div class="stage">
-      <iframe id="viewer" title="3D splat viewer" allow="xr-spatial-tracking; fullscreen" hidden></iframe>
+      <iframe id="viewer" title="3D viewer" allow="xr-spatial-tracking; fullscreen" hidden></iframe>
       <div class="placeholder" id="placeholder" hidden>
         <strong>Being captured</strong>
         <span>Reference only for now: this dish is being captured. The details on the right describe the planned capture; the 3D splat will appear here once it is trained and cleaned.</span>
@@ -236,6 +236,13 @@
               "The juice near the base was see-through once the paper behind it was removed, so the lower cup and its bottom got a solid juice layer coloured from the juice around it.",
               "Seen from below the photographed angle the clear rim looks softer.",
               "Stands upright so it sits on the table in AR."] },
+    { id: "juice-blender", label: "Orange juice · modelled in Blender", mesh: "blender_juice_cup.glb", ios: "blender_juice_cup.usdz", orbit: "30deg 70deg",
+      lead: "The same cup of orange juice, modelled by hand in Blender instead of scanned: a clear plastic cup and the juice inside, built to the real cup's size and shape from the Sony photos.",
+      facts: [["Built from", "Sony photos"], ["Triangles", "115,840"], ["Size", "2.8 MB"], ["Height", "12 cm"]],
+      notes: ["A mesh, not a splat: shape and colours were measured from the side and top photos of the cup, then built as a 3D model.",
+              "The cup is 12 cm tall with a 9.8 cm rolled rim, a 5.9 cm base and a small step ring near the bottom; the juice sits 10 cm high, curves up at the wall and has a thin pale foam ring with small bubbles.",
+              "The clear plastic is shown as a faint see-through layer: web viewers cannot bend light through it the way the Blender render does.",
+              "Opens in AR Quick Look on iPhone and Scene Viewer on Android, at real size."] },
     { id: "juice", label: "Glass of juice · polished", src: "juice_liquid7_splat.sog", params: "h=0.14&maxel=35&liquid=1&glass=1",
       lead: "A glass of dark red juice, the hardest object in the test: clear glass that photogrammetry cannot capture, kept here as seen in the photos.",
       facts: [["Photos", "118 (2 heights)"], ["Splats", "17,003"], ["Size", "0.8 MB (phone 0.4)"], ["Height", "14 cm"]],
@@ -308,9 +315,16 @@
       frame.hidden = true; frame.removeAttribute("src"); placeholder.hidden = false;
     } else {
       placeholder.hidden = true; frame.hidden = false;
-      frame.title = "3D splat of the " + m.label.toLowerCase();
       var q = quality === "original" && !m.original ? "full" : quality;
-      var url = "splat.html?src=" + (q === "original" ? m.original : m.src) + "&" + m.params + (q === "standard" ? "" : "&full=1");
+      var url;
+      if (m.mesh) {
+        frame.title = "3D model of the " + m.label.toLowerCase();
+        url = "mesh.html?src=" + m.mesh + (m.ios ? "&ios=" + m.ios : "") + "&orbit=" + encodeURIComponent(m.orbit || "30deg 70deg")
+          + "&alt=" + encodeURIComponent(m.lead) + (q === "standard" ? "" : "&full=1");
+      } else {
+        frame.title = "3D splat of the " + m.label.toLowerCase();
+        url = "splat.html?src=" + (q === "original" ? m.original : m.src) + "&" + m.params + (q === "standard" ? "" : "&full=1");
+      }
       if (frame.getAttribute("src") !== url) frame.setAttribute("src", url);
     }
     if (push && history.replaceState) history.replaceState(null, "", "#" + m.id);

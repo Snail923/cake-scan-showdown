@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Mesh Viewer</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@600&family=IBM+Plex+Mono:wght@400&display=swap">
+<script type="module" src="https://cdn.jsdelivr.net/npm/@google/model-viewer@4.0.0/dist/model-viewer.min.js"></script>
+<style>
+  :root { --stage: #ebe7ef; --muted: #6b6575; --accent: #a8285f; --accent-ink: #ffffff; }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) { --stage: #24212a; --muted: #a39cad; --accent: #e46a9e; --accent-ink: #1a0d14; }
+  }
+  :root[data-theme="dark"] { --stage: #24212a; --muted: #a39cad; --accent: #e46a9e; --accent-ink: #1a0d14; }
+  html, body { margin: 0; height: 100%; overflow: hidden; background: var(--stage); }
+  model-viewer { display: block; width: 100%; height: 100%; background: var(--stage); --poster-color: transparent; --progress-bar-color: var(--accent); }
+  .ar-btn {
+    position: absolute; left: 50%; bottom: 14px; transform: translateX(-50%);
+    font: 600 14px/1 "IBM Plex Sans", system-ui, sans-serif; border: 0; border-radius: 999px; padding: 11px 16px;
+    background: var(--accent); color: var(--accent-ink); cursor: pointer; display: inline-flex; gap: 8px; align-items: center;
+    box-shadow: 0 4px 14px rgb(0 0 0 / .18); white-space: nowrap; text-decoration: none;
+  }
+  .ar-btn img { display: block; }
+  .ar-btn:focus-visible { outline: 3px solid #fff; outline-offset: 2px; }
+  .no-ar { position: absolute; left: 12px; right: 12px; bottom: 12px; text-align: center; font: 12px/1.35 "IBM Plex Mono", ui-monospace, monospace; color: var(--muted); }
+  model-viewer[data-ar-ok] .no-ar { display: none; }
+</style>
+</head>
+<body>
+<!-- Full-frame mesh viewer for results.html: mesh.html?src=model.glb[&ios=model.usdz][&orbit=30deg 70deg][&full=1]
+     Phones load the lighter <name>_m.glb unless full=1. iOS opens AR Quick Look with the USDZ; Android uses Scene Viewer. -->
+<model-viewer id="mv" camera-controls touch-action="none" shadow-intensity="1" exposure="1.05"
+  ar ar-modes="webxr scene-viewer quick-look" ar-placement="floor" ar-scale="auto" interaction-prompt="none">
+  <button slot="ar-button" class="ar-btn">View on your table</button>
+  <a class="ar-btn" id="ios-ar" rel="ar" hidden><img src="ar-glyph.png" alt="" width="20" height="20">View on your table</a>
+  <span class="no-ar">AR opens on a phone</span>
+</model-viewer>
+<script>
+  (function () {
+    var p = new URLSearchParams(location.search);
+    var src = p.get("src"), ios = p.get("ios");
+    if (!src || !/^[\w.-]+\.glb$/.test(src)) return;
+    if (ios && !/^[\w.-]+\.usdz$/.test(ios)) ios = null;
+    var mv = document.getElementById("mv");
+    var probe = document.createElement("a");
+    var isIOS = !!(probe.relList && probe.relList.supports && probe.relList.supports("ar"));
+    var android = /Android/i.test(navigator.userAgent);
+    if ((isIOS || android) && p.get("full") !== "1") src = src.replace(/\.glb$/, "_m.glb");
+    mv.setAttribute("camera-orbit", (p.get("orbit") || "30deg 70deg") + " auto");
+    mv.setAttribute("alt", p.get("alt") || "3D model");
+    if (isIOS) {
+      mv.removeAttribute("ar");
+      mv.dataset.arOk = "";
+      if (ios) { var link = document.getElementById("ios-ar"); link.href = ios; link.hidden = false; }
+    } else if (android) {
+      mv.setAttribute("ar-modes", "scene-viewer webxr");
+    }
+    mv.setAttribute("src", src);
+  })();
+</script>
+</body>
+</html>
